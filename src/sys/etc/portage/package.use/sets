@@ -1,0 +1,59 @@
+# @dot-base
+net-misc/networkmanager -concheck nftables connection-sharing tools # want
+sys-libs/libcap static-libs # by: app-containers/lxc
+
+
+# @dot-liblang
+net-libs/nodejs npm # want
+net-libs/ngtcp2 gnutls # by: net-libs/nodejs
+
+
+# @dot-utility
+app-crypt/pinentry qt6 # want (reluctantly)
+app-text/xmlto text # by: app-crypt/pinentry (qt6)
+
+app-emulation/libvirt virt-network # want
+app-emulation/qemu usb # want
+
+app-emulation/qemu gnutls # by: app-emulation (vnc)
+net-dns/dnsmasq script # by: libvirt
+net-libs/gnutls pkcs11 tools # by: libvirt
+
+
+# @dot-desktop
+media-video/ffmpeg dav1d drm blueray cdio chromaprint chromium codec2 dvd gme jpegxl lame lcms libaom libplacebo opencl opengl openh264 opus rubberband shaderc svg svt-av1 vorbis vpx webp x264 x265 zimg # want
+media-video/pipewire extra # by: media-video/ffmpeg
+media-video/pipewire bluetooth ffmpeg modemmanager pipewire-alsa sound-server loudness # want
+
+gui-apps/grim jpeg # want
+
+gui-apps/waybar network pipewire pulseaudio upower wifi # want
+
+
+# @dot-user
+www-client/chromium -rar # license: decline UNRAR
+www-client/chromium -system-png # by: www-client/firefox+system-png (apng flag)
+sys-libs/zlib minizip # by: www-client/chromium
+net-libs/nodejs inspector # by: www-client/chromium
+
+www-client/firefox -telemetry system-pipewire system-png openh264 jpegxl # want
+
+media-libs/libpng apng # by: www-client/firefox (system-png)
+
+media-libs/libvpx postproc # by: net-misc/moonlight
+dev-qt/qtdeclarative svg # by: net-misc/moonlight
+media-libs/libsdl2 kms gles2 # by: net-misc/moonlight
+media-libs/freetype harfbuzz # by: net-misc/moonlight
+
+dev-qt/qtbase opengl # by: various
+dev-qt/qttools opengl # by: various
+dev-qt/qtdeclarative opengl # by: various
+media-libs/libglvnd X # by: net-misc/moonlight
+
+media-gfx/gimp heif jpegxl webp # want
+
+app-text/poppler cairo # by: media-gfx/gimp
+media-libs/babl introspection lcms # by: media-gfx/gimp
+media-libs/gegl introspection lcms cairo # by: media-gfx/gimp
+
+media-video/mpv bluray dvd jpeg lcms rubberband sixel tools # want

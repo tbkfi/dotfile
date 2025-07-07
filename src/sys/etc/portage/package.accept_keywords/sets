@@ -1,0 +1,12 @@
+# dot-desktop
+gui-apps/tuigreet ~amd64 # no-stable
+
+# dot-user
+www-client/firefox ~amd64 # want
+dev-libs/nss ~amd64 # by: www-client/firefox:rapid
+
+mail-client/thunderbird ~amd64 # want
+
+net-misc/moonlight ~amd64 # no-stable
+
+media-gfx/gimp ~amd64 # feature: >=3.0 Wayland supercedes X, missing stable.

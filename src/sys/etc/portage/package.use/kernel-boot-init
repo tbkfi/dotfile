@@ -1,0 +1,2 @@
+sys-kernel/installkernel systemd systemd-boot dracut
+sys-apps/systemd boot kernel-install cryptsetup

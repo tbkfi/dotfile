@@ -1,0 +1,13 @@
+[terminal]
+# The VT to run the greeter on. Can be "next", "current" or a number
+# designating the VT.
+vt = 2
+
+# The default session, also known as the greeter.
+[default_session]
+command = "tuigreet --asterisks --window-padding 2 --container-padding 1 --prompt-padding 0 --greet-align center --time --time-format '%Y.%m.%d @ %H:%M:%S' --theme 'border=magenta;text=white;prompt=green;time=yellow;action=blue;button=yellow;container=grey;input=red' --cmd 'dbus-run-session sway'"
+
+# The user to run the command as. The privileges this user must have depends
+# on the greeter. A graphical greeter may for example require the user to be
+# in the `video` group.
+user = "greetd"
