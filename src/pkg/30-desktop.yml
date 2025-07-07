@@ -1,0 +1,104 @@
+polkit:
+# Authorisation framework
+    debian: polkitd
+    fedora: polkit
+    gentoo: sys-auth/polkit
+    arch: polkit
+
+xdg-desktop-portal:
+# D-Bus interfaces
+    debian: xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr
+    fedora: xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr
+    gentoo: sys-apps/xdg-desktop-portal sys-apps/xdg-desktop-portal-gtk gui-libs/xdg-desktop-portal-wlr
+    arch: xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr
+
+fontconfig:
+# Font configuration library
+    debian: fontconfig
+    fedora: fontconfig
+    gentoo: media-libs/fontconfig
+    arch: fontconfig
+
+alsa:
+# Linux sound architecture
+    debian: alsa-lib alsa-tools
+    fedora: alsa-lib alsa-tools
+    gentoo: media-libs/alsa-lib media-sound/alsa-utils
+    arch: alsa-lib alsa-tools
+
+pipewire:
+# Multimedia framework
+    debian: pipewire pipewire-audio
+    fedora: pipewire
+    gentoo: media-video/pipewire
+    arch: pipewire
+
+tuigreet:
+# TUI login manager for Wayland
+    debian: greetd tuigreet
+    fedora: greetd tuigreet
+    gentoo: gui-libs/greetd gui-apps/tuigreet
+    arch: greetd tuigreet
+
+swaywm:
+# Tiling Window Manager
+    debian: sway swaybg swayidle swaylock
+    fedora: sway swaybg swayidle swaylock
+    gentoo: gui-wm/sway gui-apps/swaybg gui-apps/swayidle gui-apps/swaylock
+    arch: sway swaybg swayidle swaylock
+
+wl-clipboard:
+# Wayland clipboard
+    debian: wl-clipboard
+    fedora: wl-clipboard
+    gentoo: gui-apps/wl-clipboard
+    arch: wl-clipboard
+
+mako:
+# System notifications
+    debian: mako-notifier
+    fedora: mako
+    gentoo: gui-apps/mako x11-libs/libnotify
+    arch: mako
+
+waybar:
+# Wayland desktop panel
+    debian: waybar
+    fedora: waybar
+    gentoo: gui-apps/waybar
+    arch: waybar
+
+wofi:
+# Wayland Program launcher
+    debian: wofi
+    fedora: wofi
+    gentoo: gui-apps/wofi
+    arch: wofi
+
+grim:
+# Screenshot utility for Sway
+    debian: grim
+    fedora: grim
+    gentoo: gui-apps/grim
+    arch: grim
+
+slurp:
+# Screen region to stdout
+    debian: slurp
+    fedora: slurp
+    gentoo: gui-apps/slurp
+    arch: slurp
+
+foot:
+# Terminal emulator
+    debian: foot
+    fedora: foot
+    gentoo: gui-apps/foot
+    arch: foot
+
+libwacom:
+# Wacom tablet support
+    debian: libwacom9 libwacom-common
+    fedora: libwacom
+    gentoo: dev-libs/libwacom
+    arch: libwacom

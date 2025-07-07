@@ -1,0 +1,101 @@
+kernel:
+# Linux kernel
+    debian: linux
+    fedora: kernel
+    gentoo: sys-kernel/gentoo-kernel sys-kernel/linux-firmware
+    arch: linux-hardened
+
+systemd:
+# Init system (and more...)
+    debian: systemd
+    fedora: systemd
+    gentoo: sys-apps/systemd
+    arch: systemd
+
+openssl:
+# Crypto library
+    debian: openssl
+    fedora: openssl
+    gentoo: dev-libs/openssl
+    arch: openssl
+
+cryptsetup:
+# Disk encryption
+    debian: cryptsetup
+    fedora: cryptsetup
+    gentoo: sys-fs/cryptsetup
+    arch: cryptsetup
+
+nftables:
+# Networking framework
+    debian: nftables
+    fedora: nftables
+    gentoo: net-firewall/nftables
+    arch: nftables
+
+networkmanager:
+# Networking management
+    debian: network-manager network-manager-openvpn
+    fedora: NetworkManager NetworkManager-openvpn
+    gentoo: net-misc/networkmanager net-vpn/networkmanager-openvpn
+    arch: networkmanager networkmanager-openvpn
+
+smart:
+# S.M.A.R.T.
+    defian: smartmontools
+    fedora: smartmontools
+    gentoo: sys-apps/smartmontools
+    arch: smartmontools
+
+bluez:
+# Bluetooth functionality
+    debian: bluez
+    fedora: bluez
+    gentoo: net-wireless/bluez
+    arch: bluez
+
+chrony:
+# Network time
+    debian: chrony
+    fedora: chrony
+    gentoo: net-misc/chrony
+    arch: chrony
+
+sudo:
+# Privilege elevation
+    debian: sudo
+    fedora: sudo
+    gentoo: app-admin/sudo
+    arch: sudo
+
+tlp:
+# Optimise Laptop battery
+    debian: tlp
+    fedora: tlp
+    gentoo: sys-power/tlp
+    arch: tlp
+
+lxc:
+# Linux containers
+    debian: lxc
+    fedora: lxc
+    gentoo: app-containers/lxc
+    arch: lxc
+
+cups:
+# Printing system
+    debian: cups cups-filters printer-driver-cups-pdf
+    fedora: cups cups-filters cups-pdf
+    gentoo: net-print/cups net-print/cups-filters net-print/cups-pdf
+    arch: cups cups-filters cups-pdf
+
+fprintd:
+# Fingerprint reader
+    debian: fprintd libpam-fprintd
+    fedora: fprintd fprintd-pam
+    gentoo: sys-auth/fprintd
+    arch: fprintd libfprint
+
+gentools:
+# Ebuild utility
+    gentoo: app-portage/eix

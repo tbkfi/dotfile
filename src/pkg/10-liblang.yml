@@ -1,0 +1,148 @@
+libpng:
+# PNG images
+    debian: libpng
+    fedora: libpng
+    gentoo: media-libs/libpng
+    arch: libpng
+
+libjpeg:
+# JPG images
+    debian: libjpeg-turbo
+    fedora: libjpeg-turbo-utils
+    gentoo: media-libs/libjpeg-turbo
+    arch: libjpeg-turbo
+
+giflib:
+# GIF images
+    debian: giflib-tools
+    fedora: giflib-utils
+    gentoo: media-libs/giflib
+    arch: giflib
+
+libjxl:
+# JPGXL images
+    debian: libjxl-tools
+    fedora: libjxl-utils
+    gentoo: media-libs/libjxl
+    arch: libjxl
+
+libwebp:
+# WEBP images
+    debian: webp
+    fedora: libwebp-tools
+    gentoo: media-libs/libwebp
+    arch: libwebp
+
+libheif:
+# HEIF/HEIC images
+    debian: libheif
+    fedora: libheif-tools
+    gentoo: media-libs/libheif
+    arch: libheif
+
+libavif:
+# AOM AV images
+    debian: libavif
+    fedora: libavif-tools
+    gentoo: media-libs/libavif
+    arch: libavif
+
+libtiff:
+# TIFF images
+    debian: libtiff-tools
+    fedora: libtiff-tools
+    gentoo: media-libs/tiff
+    arch: libtiff
+
+libsixel:
+# Sixel graphics for terminal
+    debian: libsixel
+    fedora: libsixel
+    gentoo: media-libs/libsixel
+    arch: libsixel
+
+libraw:
+# Raw image formats
+    debian: libraw
+    fedora: libraw
+    gentoo: media-libs/libraw
+    arch: libraw
+
+librsvg:
+# SVG images
+    debian: librsvg
+    fedora: librsvg2
+    gentoo: gnome-base/librsvg
+    arch: librsvg
+
+libass:
+# SubStation Alpha subtitles
+    debian: libass9
+    fedora: libass
+    gentoo: media-libs/libass
+    arch: libass
+
+buildtools:
+# Typical build tools
+    debian: binutils make automake cmake ninja-build
+    fedora: binutils make automake cmake ninja-build
+    gentoo: sys-devel/binutils dev-build/make dev-build/automake dev-build/cmake dev-build/ninja
+    arch: binutils make automake cmake ninja
+
+debuggers:
+    debian: gdb lldb
+    fedora: gdb lldb
+    gentoo: dev-debug/gdb llvm-core/lldb
+    arch: gdb lldb
+
+c:
+# C and C++
+# note: Sometimes C and C++ is bundled in same distro pkg!
+# note: Sometimes Clang and Clangd is bundled in same distro pkg!
+    debian: gcc g++ clang-19 clangd-19 llvm
+    fedora: gcc gcc-c++ clang
+    gentoo: sys-devel/gcc llvm-core/clang llvm-core/llvm
+    arch: gcc clang
+
+google-perftools:
+# Fast malloc(), and perf analysis tools
+    debian: google-perftools
+    fedora: gperftools
+    gentoo: dev-util/google-perftools
+    arch: gperftools
+
+lua:
+# Language
+    debian: lua luarocks
+    fedora: lua luarocks
+    gentoo: dev-lang/lua dev-lua/luarocks
+    arch: lua luarocks
+
+python:
+# Language
+    debian: python3 python3-pip python3-numpy
+    fedora: python3 python3-pip python3-numpy
+    gentoo: dev-lang/python dev-python/pip dev-python/numpy
+    arch: python python-pip python-numpy
+
+go:
+# Language
+    debian: golang
+    fedora: golang
+    gentoo: dev-lang/go
+    arch: go
+
+rust:
+# Language
+# note: some distributions include cargo,fmt,... in base "rust" package.
+    debian: rustc cargo rustfmt
+    fedora: rust cargo
+    gentoo: dev-lang/rust
+    arch: rust
+
+javascript:
+# Language
+    debian: nodejs npm
+    fedora: nodejs npm
+    gentoo: net-libs/nodejs
+    arch: nodejs npm

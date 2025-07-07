@@ -1,0 +1,53 @@
+
+#zfs:
+## Filesystem
+## note: often holds kernel vers. back, and in 3rd party repos
+#  debian: kmod-zfs
+#  fedora: zfs
+#  gentoo: sys-fs/zfs-kmod
+#  arch: zfs-dkms
+
+
+# EARMARK (qt6 opengl minizip -> move to user?)
+#wireshark:
+## Network protocol analyser
+#  debian: wireshark
+#  fedora: wireshark
+#  gentoo: net-analyzer/wireshark
+#  arch: wireshark-cli
+
+
+# EARMARK (sensible to move to its own setup script & repo?)
+#arm-none-eabi:
+## Embedded C and C++
+## note: Gentoo help at <https://wiki.gentoo.org/wiki/Crossdev>
+## note: gdb-multiarch may require manual install/build on different distros...
+#  debian: gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi gdb-multiarch
+#  fedora: arm-none-eabi-gcc-cs arm-none-eabi-binutils-cs arm-none-eabi-newlib 
+#  gentoo: sys-devel/crossdev cross-arm-none-eabi/gcc cross-arm-none-eabi/binutils cross-arm-none-eabi/newlib
+#  arch: arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-newlib arm-none-eabi-gdb
+
+
+# EARMARKED: No Wayland, move to deprecate (only usable in vdesk, spec. use anyway)
+#rawtherapee:
+## Raw image editor
+#  debian: rawtherapee
+#  fedora: rawtherapee
+#  gentoo: media-gfx/rawtherapee
+#  arch: rawtherapee
+
+
+# EARMARK: still needed if rawtherapee goes?
+hugin:
+# Image stitching
+  debian: hugin
+  fedora: hugin
+  gentoo: media-gfx/hugin
+  arch: hugin
+
+enblend:
+# Image compositioning
+  debian: enblend
+  fedora: enblend
+  gentoo: media-gfx/enblend
+  arch: enblend-enfuse

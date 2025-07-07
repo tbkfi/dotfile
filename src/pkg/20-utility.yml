@@ -1,0 +1,302 @@
+coreutils:
+# GNU Core Utilities
+    debian: coreutils
+    fedora: coreutils
+    gentoo: sys-apps/coreutils
+    arch: coreutils
+
+pciutils:
+# PCI-device utilities
+    debian: pciutils
+    fedora: pciutils
+    gentoo: sys-apps/pciutils
+    arch: pciutils
+
+dmidecode:
+# Desktop Management Interface utils
+    debian: dmidecode
+    fedora: dmidecode
+    gentoo: sys-apps/dmidecode
+    arch: dmidecode
+
+parted:
+# Filesystem and partitioning tool
+    debian: parted
+    fedora: parted
+    gentoo: sys-block/parted
+    arch: parted
+
+nvme-cli:
+# NVMe user space tools
+    debian: nvme-cli
+    fedora: nvme-cli
+    gentoo: sys-apps/nvme-cli
+    arch: nvme-cli
+
+bind-utils:
+# DNS tools
+    debian: bind9-dnsutils
+    fedora: bind-utils
+    gentoo: net-dns/bind
+    arch: bind
+
+traceroute:
+# IPv route tracing
+    debian: traceroute
+    fedora: traceroute
+    gentoo: net-analyzer/traceroute
+    arch: traceroute
+
+openssh:
+# SSHv2
+    debian: openssh-server openssh-client
+    fedora: openssh openssh-server openssh-clients
+    gentoo: net-misc/openssh
+    arch: openssh
+
+gnupg:
+# GnuPG helper for entering pins
+# note: tty, ncurses, gtk, and qt versions are sometimes in one pkg!
+    debian: gnupg pinentry pinentry-tty
+    fedora: gnupg pinentry pinentry-tty
+    gentoo: app-crypt/gnupg app-crypt/pinentry
+    arch: gnupg pinentry
+
+vim:
+# A text editor
+    debian: vim
+    fedora: vim
+    gentoo: app-editors/vim
+    arch: vim
+
+git:
+# Versioning system
+    debian: git
+    fedora: git
+    gentoo: dev-vcs/git
+    arch: git
+
+git-lfs:
+# Versionin system LFS support
+    debian: git-lfs
+    fedora: git-lfs
+    gentoo: dev-vcs/git-lfs
+    arch: git-lfs
+
+qemu:
+# Machine emulation and virtualisation
+    debian: qemu-system qemu-utils
+    fedora: qemu
+    gentoo: app-emulation/qemu
+    arch: qemu-full
+
+libvirt:
+# Virtualisation tools
+    debian: libvirt-daemon-system
+    fedora: libvirt
+    gentoo: app-emulation/libvirt
+    arch: libvirt
+
+nmap:
+# Network explorer and scanner
+    debian: nmap
+    fedora: nmap
+    gentoo: net-analyzer/nmap
+    arch: nmap
+
+dosfstools:
+# FAT filesystem tools
+    debian: dosfstools
+    fedora: dosfstools
+    gentoo: sys-fs/dosfstools
+    arch: dosfstools
+
+nfs-utils:
+# NFS tools
+    debian: nfs-common
+    fedora: nfs-utils
+    gentoo: net-fs/nfs-utils
+    arch: nfs-utils
+
+cifs-utils:
+# CIFS/Samba tools
+    debian: cifs-utils
+    fedora: cifs-utils
+    gentoo: net-fs/cifs-utils
+    arch: cifs-utils
+
+tree:
+# Print directory trees
+    debian: tree
+    fedora: tree
+    gentoo: app-text/tree
+    arch: tree
+
+testdisk:
+# Block device partition recovery
+# note: USE="-gtk"
+    debian: testdisk
+    fedora: testdisk
+    gentoo: app-admin/testdisk
+    arch: testdisk
+
+fio:
+# Generate I/O for testing and benchmarking
+    debian: fio
+    fedora: fio
+    gentoo: sys-block/fio
+    arch: fio
+
+iperf3:
+# TCP/UDP bandwith testing
+    debian: iperf3
+    fedora: iperf3
+    gentoo: net-misc/iperf
+    arch: iperf3
+
+wireless-tools:
+# Wireless Extension tools
+    debian: wireless-tools
+    fedora: wireless-tools
+    gentoo: net-wireless/wireless-tools
+    arch: wireless_tools
+
+telnet:
+# telnet client (and maybe other common network programs)
+    debian: inetutils-telnetd
+    fedora: telnet
+    gentoo: net-misc/inetutils
+    arch: inetutils
+
+lsof:
+# List open files
+    debian: lsof
+    fedora: lsof
+    gentoo: sys-process/lsof
+    arch: lsof
+
+htop:
+# Process viewer
+    debian: htop
+    fedora: htop
+    gentoo: sys-process/htop
+    arch: htop
+
+usbutils:
+# USB tools
+    debian: usbutils
+    fedora: usbutils
+    gentoo: sys-apps/usbutils
+    arch: usbutils
+
+fd-find:
+# "Better" find tool
+    debian: fd-find
+    fedora: fd-find
+    gentoo: sys-apps/fd
+    arch: fd
+
+mtr:
+# Network diagnostic tool (ping+traceroute)
+    debian: mtr
+    fedora: mtr
+    gentoo: net-analyzer/mtr
+    arch: mtr
+
+minicom:
+# Serial console terminal emulator
+    debian: minicom
+    fedora: minicom
+    gentoo: net-dialup/minicom
+    arch: minicom
+
+android-debug-bridge:
+# Android debugging tools
+    debian: adb
+    fedora: android-tools
+    gentoo: dev-util/android-tools
+    arch: android-tools
+
+oxipng:
+# multi-threaded png compression optimiser
+    #debian: N/A
+    fedora: oxipng
+    gentoo: media-gfx/oxipng
+    arch: oxipng
+
+exiv2:
+# Manipulate EXIF, IPTC, and XMP metadata
+    debian: exiv2
+    fedora: exiv2
+    gentoo: media-gfx/exiv2
+    arch: exiv2
+
+rsync:
+# File and directory synchronisation
+    debian: rsync
+    fedora: rsync
+    gentoo: net-misc/rsync
+    arch: rsync
+
+ripgrep:
+# Recursive search tool
+    debian: ripgrep
+    fedora: ripgrep
+    gentoo: sys-apps/ripgrep
+    arch: ripgrep
+
+fzf:
+# Fuzzy finder
+    debian: fzf
+    fedora: fzf
+    gentoo: app-shells/fzf
+    arch: fzf
+
+jq:
+# Parse some JSON
+    debian: jq
+    fedora: jq
+    gentoo: app-misc/jq
+    arch: jq
+
+yq:
+# Parse some YAML, XML, TOML, ...
+    debian: yq
+    fedora: yq
+    gentoo: app-misc/yq
+    arch: yq
+
+eza:
+# 'ls' clone with extra features
+    debian: eza
+    fedora: eza
+    gentoo: sys-apps/eza
+    arch: eza
+
+bat:
+# Pretty cat
+    debian: bat
+    fedora: bat
+    gentoo: sys-apps/bat
+    arch: bat
+
+mediainfo:
+# Technical info on media files
+    debian: mediainfo
+    fedora: mediainfo
+    gentoo: media-video/mediainfo
+    arch: mediainfo
+
+imagemagick:
+# Tools and libraries for various image formats
+    debian: imagemagick
+    fedora: ImageMagick
+    gentoo: media-gfx/imagemagick
+    arch: imagemagick
+
+iotop:
+# System I/O top
+    debian: iotop
+    fedora: iotop
+    gentoo: sys-process/iotop
+    arch: iotop

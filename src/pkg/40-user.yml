@@ -1,0 +1,182 @@
+neovim:
+# Text editor
+# note: debian is very behind usually
+    debian: neovim
+    fedora: neovim
+    gentoo: app-editors/neovim
+    arch: neovim
+
+pcsc:
+# Smart card tools
+    debian: pcscd
+    fedora: pcsc-tools
+    gentoo: sys-apps/pcsc-tools
+    arch: pcsc-tools
+
+yubikey:
+# Tooling for yubikey management
+    debian: yubikey-manager yubico-piv-tool
+    fedora: yubikey-manager yubico-piv-tool
+    gentoo: app-crypt/yubikey-manager sys-auth/yubico-piv-tool
+    arch: yubikey-manager yubico-piv-tool
+
+qalculate:
+# Calculator
+    debian: qalc qalculate-gtk
+    fedora: qalculate qalculate-gtk
+    gentoo: sci-libs/libqalculate sci-calculators/qalculate-gtk
+    arch: libqalculate qalculate-gtk
+
+fuse3:
+# Userspace filesystems
+    debian: fuse3
+    fedora: fuse3
+    gentoo: sys-fs/fuse
+    arch: fuse3
+
+texlive:
+# TeX distribution
+    debian: texlive-full
+    fedora: texlive-scheme-full
+    gentoo: app-text/texlive
+    arch: texlive-basic texlive-latex texlive-latexextra
+
+zathura:
+# Document viewer
+    debian: zathura zathura-pdf-poppler
+    fedora: zathura zathura-pdf-mupdf
+    gentoo: app-text/zathura app-text/zathura-pdf-mupdf
+    arch: zathura zathura-pdf-mupdf
+
+mupdf:
+# PDF toolkit
+    debian: mupdf-tools
+    fedora: mupdf
+    gentoo: app-text/mupdf
+    arch: mupdf-tools
+
+ffmpeg:
+# Multimedia enc/dec and manipulation
+    debian: ffmpeg
+    fedora: ffmpeg
+    gentoo: media-video/ffmpeg
+    arch: ffmpeg
+
+liblcms:
+# Colour management engine
+    debian: liblcms2-utils
+    fedora: lcms2-utils
+    gentoo: media-libs/lcms
+    arch: lcms2
+
+virt-manager:
+# Virtualisation frontend
+    debian: virt-manager
+    fedora: virt-manager
+    gentoo: app-emulation/virt-manager
+    arch: virt-manager
+
+virt-viewer:
+# Virtualisation frontend
+    debian: virt-viewer
+    fedora: virt-viewer
+    gentoo: app-emulation/virt-viewer
+    arch: virt-viewer
+
+qrencode:
+# Encode data into qrcode format
+    debian: qrencode
+    fedora: qrencode
+    gentoo: media-gfx/qrencode
+    arch: qrencode
+
+links:
+# Text-based browser
+    debian: links
+    fedora: links
+    gentoo: www-client/links
+    arch: links
+
+thunderbird:
+# Email and calendar
+    debian: thunderbird
+    fedora: thunderbird
+    gentoo: mail-client/thunderbird
+    arch: thunderbird
+
+firefox:
+# Web browser
+    debian: firefox-esr
+    fedora: firefox
+    gentoo: www-client/firefox:rapid
+    arch: firefox
+
+chromium:
+# Web browser
+    debian: chromium
+    fedora: chromium
+    gentoo: www-client/chromium:0/stable
+    arch: chromium
+
+libplacebo:
+# Rendering library
+    debian: libplacebo
+    fedora: libplacebo
+    gentoo: media-libs/libplacebo
+    arch: libplacebo
+
+mpv:
+# Multimedia playback
+    debian: mpv
+    fedora: mpv
+    gentoo: media-video/mpv
+    arch: mpv
+
+rubberband:
+# Audio manip. (tempo/pitch)
+    debian: rubberband-cli
+    fedora: rubberband
+    gentoo: media-libs/rubberband
+    arch: rubberband
+
+yt-dlp:
+# Online content downloader
+    debian: yt-dlp
+    fedora: yt-dlp
+    gentoo: net-misc/yt-dlp
+    arch: yt-dlp
+
+moonlight:
+# Gamestreaming client
+    debian:
+    fedora:
+    gentoo: net-misc/moonlight
+    arch:
+
+gimp:
+# Image editor
+    debian: gimp
+    fedora: gimp
+    gentoo: media-gfx/gimp
+    arch: gimp
+
+openexr:
+# High dynamic range image tools
+    debian:
+    fedora:
+    gentoo: media-libs/openexr
+    arch:
+
+libshaderc:
+# Vulkan shader compilation
+    debian: libshaderc1
+    fedora: libshaderc
+    gentoo: media-libs/shaderc
+    arch: shaderc
+
+hugo:
+# Static website generator
+    debian: hugo
+    fedora: hugo
+    gentoo: www-apps/hugo
+    arch: hugo
