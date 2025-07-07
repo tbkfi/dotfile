@@ -91,20 +91,25 @@ dot_link() {
 	# Secrets
 	if [[ -d "$PATH_DOTFILE/secrets" ]]; then
 		local PATH_SECRETS="$PATH_DOTFILE/secrets"
+		echo -e "\n> secrets"
 
 		if [[ -f "$PATH_SECRETS/gitconfig" ]]; then
 		# Gitconfig
-			relink "$PATH_SECRETS/gitconfig" "$XDG_CONFIG_HOME/.gitconfig"
+			relink "$PATH_SECRETS/gitconfig" "$HOME/.gitconfig"
 		fi
 
 		if [[ -d "$PATH_SECRETS/gnupg" ]]; then
-		# Gnupg
-			relink "$PATH_SECRETS/gnupg" "$XDG_CONFIG_HOME/.gnupg"
+		# GPG
+			find "$PATH_SECRETS/gnupg" -type f -exec chmod 600 {} \;
+			find "$PATH_SECRETS/gnupg" -type d -exec chmod 700 {} \;
+			relink "$PATH_SECRETS/gnupg" "$HOME/.gnupg"
 		fi
 
 		if [[ -d "$PATH_SECRETS/ssh" ]]; then
 		# SSH
-			relink "$PATH_SECRETS/ssh" "$XDG_CONFIG_HOME/.ssh"
+			find "$PATH_SECRETS/ssh" -type f -exec chmod 600 {} \;
+			find "$PATH_SECRETS/ssh" -type d -exec chmod 700 {} \;
+			relink "$PATH_SECRETS/ssh" "$HOME/.ssh"
 		fi
 	fi
 }
