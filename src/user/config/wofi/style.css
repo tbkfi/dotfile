@@ -1,0 +1,47 @@
+* {
+	font-family: "monospace";
+	font-size: 2rem;
+	color: rgba(112, 112, 112, 1);
+
+	margin: 0.10rem;
+	border: none;
+	outline: none;
+}
+
+scrollbar,
+scrollbar * {
+    background-color: rgba(20, 20, 20, 0.50);
+}
+
+scrollbar slider {
+    background-color: rgba(112, 112, 112, 1);
+    border-radius: 8px;
+}
+
+window {
+	background-color: rgba(20, 20, 20, 0.30);
+	border: 2px solid rgba(112, 112, 112, 1);
+}
+
+#input {
+	background-color: rgba(20, 20, 20, 1);
+}
+
+#inner-box {
+	background-color: rgba(20, 20, 20, 0.25);
+	margin: 0.25rem;
+}
+
+#outer-box {
+	background-color: rgba(20, 20, 20, 0.50);
+}
+
+#scroll {
+}
+
+#text {
+}
+
+#entry:selected {
+	background-color: rgba(20, 20, 20, 0.80);
+}

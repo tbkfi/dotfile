@@ -1,0 +1,159 @@
+#!/bin/bash
+
+
+emerge_build_load() {
+# Calculate appropriate values for EMERGE_JOBS, EMERGE_LOAD.
+
+	# Memory
+	MEMORY_TOTAL="$(cat /proc/meminfo | grep MemTotal | awk '{print $2}')"
+	(( MEMORY_TOTAL = $MEMORY_TOTAL / 1000**2 )) # to GB
+
+	# Load
+	EMERGE_LOAD="$(( $(nproc) * 75/100 ))"
+
+	# Jobs
+	# note: ~2.5GB / thread (= 250 / 100 multiplier)
+	EMERGE_JOBS="$(nproc)"
+	while (( $MEMORY_TOTAL < $EMERGE_JOBS * 250/100 )); do
+		EMERGE_JOBS=$(( $EMERGE_JOBS - 1 ))
+	done
+}
+
+
+portage_flags() {
+# Update various flags (make.conf, global flags, package.*)
+	echo -e "\n>> portage flags"
+	echo -e "\n> global"
+
+	# Make.conf
+	echo "* updating $PATH_PORTAGE/make.conf"
+	cp "$PATH_DOTFILE"/src/sys/etc/portage/make.conf "$PATH_PORTAGE"/make.conf
+	if (( $? )); then
+		echo "missing permissions? quitting."
+		return 1
+	fi
+
+	emerge_build_load
+	if [[ "$EMERGE_JOBS" != "" || "$EMERGE_LOAD" != "" ]]; then
+		echo -e "\nMAKEOPTS=\"--jobs $EMERGE_JOBS --load-average $EMERGE_LOAD\"" >> /etc/portage/make.conf
+		echo "* jobs: $EMERGE_JOBS"
+		echo "* load: $EMERGE_LOAD"
+	fi
+	if (( $MEMORY_TOTAL - $EMERGE_JOBS * 2 > 24 )); then
+		echo -e "PORTAGE_TMPDIR=\"/tmp\"\n" >> "$PATH_PORTAGE"/make.conf
+		echo "* /tmp: set"
+	else
+		echo "* /tmp: unset"
+	fi
+
+	# Package flags
+	local PKG_TARGETS=(
+		package.license
+		package.use
+		package.accept_keywords
+		package.unmask
+		package.mask
+	)
+
+	echo -e "\n> package"
+	for T in "${PKG_TARGETS[@]}"; do
+		echo "* $PATH_PORTAGE/$T"
+
+		rm -rf "$PATH_PORTAGE/$T"
+		mkdir -p "$PATH_PORTAGE/$T"
+
+		cp "$PATH_DOTFILE"/src/sys/etc/portage/"$T"/* "$PATH_PORTAGE/$T"
+	done
+
+	if command -v cpuid2cpuflags > /dev/null 2>&1; then
+		echo "*/* $(cpuid2cpuflags)" > "$PATH_PORTAGE"/package.use/00cpu-flags
+		echo "* cpu-flags: set"
+	else
+		emerge -v app-portage/cpuid2cpuflags > /dev/null 2>&1
+		if command -v cpuid2cpuflags > /dev/null 2>&1; then
+			echo "*/* $(cpuid2cpuflags)" > "$PATH_PORTAGE"/package.use/00cpu-flags
+			echo "* cpu-flags: set"
+		else
+			echo "* cpu-flags: unset"
+		fi
+	fi
+
+	# Permissions
+	local P_FILE=644
+	local P_DIR=755
+
+	echo -e "\n> permissions"
+	chmod $P_FILE "$PATH_PORTAGE/make.conf" && echo "* set $P_FILE on make.conf"
+	for T in "${PKG_TARGETS[@]}"; do
+		chmod $P_DIR "$PATH_PORTAGE"/"$T" && echo "* set $P_DIR on $T"
+		chmod $P_FILE "$PATH_PORTAGE"/"$T"/*
+	done
+}
+
+portage_sets() {
+# Update Portage sets
+	echo -e "\n>> portage sets"
+
+        # Require yq for parsing
+        if ! command -v yq > /dev/null 2>&1; then
+		emerge -v app-misc/yq
+                if ! command -v yq > /dev/null 2>&1; then
+			echo "missing yq, bye"
+			return 1
+		fi
+        fi
+
+        # Sets are sourced from PATH_DOTFILE
+        if [[ ! -d "$PATH_DOTFILE/src/pkg" ]]; then
+                echo "missing pkg sources, bye"
+                return 1
+        fi
+
+        # Reset portage sets at PATH_PORTAGE
+        rm -rf "$PATH_PORTAGE/sets"
+	if (( $? )); then
+		echo "missing permissions? quitting."
+		return 1
+	fi
+        mkdir -p "$PATH_PORTAGE/sets"
+
+        # Parse pkg files (yq), split space-delimited entries (xargs)
+	# *grumble grumble* it's not neat! *grumble grumble*
+        echo "* updating @dot-base"
+        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/00-base.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-base"
+        echo "* updating @dot-liblang"
+        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/10-liblang.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-liblang"
+        echo "* updating @dot-utility"
+        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/20-utility.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-utility"
+        echo "* updating @dot-desktop"
+        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/30-desktop.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-desktop"
+        echo "* updating @dot-user"
+        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/40-user.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-user"
+	chmod 755 "$PATH_PORTAGE"/sets && chmod 644 "$PATH_PORTAGE"/sets/*
+}
+
+portage_refresh() {
+# Refresh portage settings (make.conf, package.*, sets)
+	: "${PATH_PORTAGE:=/etc/portage}"
+
+	if (( $(id -g) == 0 )); then
+		if [[ -d "/home/$(logname)/dotfile" ]]; then
+			: "${PATH_DOTFILE:=/home/$(logname)/dotfile}"
+		else
+			: "${PATH_DOTFILE:=/root/dotfile}"
+		fi
+	fi
+
+	echo "sourcing from $PATH_DOTFILE"
+	if [[ ! -d $PATH_DOTFILE ]]; then
+		echo "missing dotfile! quitting."
+		return 1
+	fi
+
+	portage_flags
+	portage_sets
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	portage_refresh
+fi

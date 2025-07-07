@@ -1,0 +1,276 @@
+# pw-dump 
+# 2025-07-06
+
+      { "subject": 0, "key": "default.audio.sink", "type": "Spa:String:JSON", "value": { "name": "alsa_output.usb-Audient_Audient_iD14-00.analog-surround-21" } },
+      { "subject": 0, "key": "default.audio.source", "type": "Spa:String:JSON", "value": { "name": "alsa_input.pci-0000_65_00.6.HiFi__Mic1__source" } }
+    ]
+  },
+  {
+    "id": 42,
+    "type": "PipeWire:Interface:Metadata",
+    "version": 3,
+    "permissions": [ "r", "w", "x" ],
+    "props": {
+      "client.id": 33,
+      "factory.id": 7,
+      "metadata.name": "route-settings",
+      "module.id": 6,
+      "object.serial": 42
+    },
+    "metadata": [
+      { "subject": 0, "key": "restore.stream.Output/Audio.media.role:Notification", "type": "Spa:String:JSON", "value": { "volumes": [ 1.000000 ], "mute": false, "channels": [ "MONO" ] } }
+    ]
+  },
+  {
+--
+        "alsa.card_name": "Audient iD14",
+        "alsa.components": "USB2708:0008",
+        "alsa.driver_name": "snd_usb_audio",
+        "alsa.id": "iD14",
+        "alsa.long_card_name": "Audient Audient iD14 at usb-0000:65:00.3-2.4, high speed",
+        "alsa.mixer_name": "USB Mixer",
+        "api.acp.auto-port": false,
+        "api.acp.auto-profile": false,
+        "api.alsa.card": 3,
+        "api.alsa.card.longname": "Audient Audient iD14 at usb-0000:65:00.3-2.4, high speed",
+        "api.alsa.card.name": "Audient iD14",
+        "api.alsa.path": "hw:3",
+        "api.alsa.split-enable": true,
+        "api.alsa.use-acp": true,
+        "api.dbus.ReserveDevice1": "Audio3",
+        "api.dbus.ReserveDevice1.Priority": -20,
+        "client.id": 43,
+        "device.api": "alsa",
+        "device.bus": "usb",
+        "device.bus-id": "usb-Audient_Audient_iD14-00",
+        "device.bus-path": "pci-0000:65:00.3-usb-0:2.4:1.0",
+        "device.description": "Audient iD14",
+        "device.enum.api": "udev",
+        "device.icon-name": "audio-card-analog-usb",
+        "device.name": "alsa_card.usb-Audient_Audient_iD14-00",
+        "device.nick": "Audient iD14",
+        "device.plugged.usec": 181139716332,
+        "device.product.id": "0x0008",
+        "device.product.name": "Audient iD14",
+        "device.serial": "Audient_Audient_iD14",
+        "device.string": 3,
+        "device.subsystem": "sound",
+        "device.sysfs.path": "/devices/pci0000:00/0000:00:08.1/0000:65:00.3/usb1/1-2/1-2.4/1-2.4:1.0/sound/card3",
+        "device.vendor.id": "0x2708",
+        "device.vendor.name": "Audient",
+        "factory.id": 15,
+        "media.class": "Audio/Device",
+        "object.id": 45,
+        "object.path": "alsa:acp:iD14",
+        "object.serial": 45,
+        "spa.object.id": 8
+      },
+      "params": {
+        "EnumProfile": [
+          {
+            "index": 0,
+            "name": "off",
+            "description": "Off",
+            "priority": 0,
+            "available": "yes",
+            "classes": [
+              0
+            ]
+          },
+          {
+--
+        "alsa.card_name": "Audient iD14",
+        "alsa.class": "generic",
+        "alsa.components": "USB2708:0008",
+        "alsa.device": 0,
+        "alsa.driver_name": "snd_usb_audio",
+        "alsa.id": "USB Audio",
+        "alsa.long_card_name": "Audient Audient iD14 at usb-0000:65:00.3-2.4, high speed",
+        "alsa.mixer_name": "USB Mixer",
+        "alsa.name": "USB Audio",
+        "alsa.resolution_bits": 32,
+        "alsa.subclass": "generic-mix",
+        "alsa.subdevice": 0,
+        "alsa.subdevice_name": "subdevice #0",
+        "alsa.sync.id": "00000000:00000000:00000000:00000000",
+        "api.alsa.card.longname": "Audient Audient iD14 at usb-0000:65:00.3-2.4, high speed",
+        "api.alsa.card.name": "Audient iD14",
+        "api.alsa.headroom": 16,
+        "api.alsa.path": "surround21:3",
+        "api.alsa.pcm.card": 3,
+        "api.alsa.pcm.stream": "playback",
+        "api.alsa.period-num": 1024,
+        "api.alsa.period-size": 16,
+        "audio.channels": 3,
+        "audio.position": "FL,FR,LFE",
+        "card.profile.device": 3,
+        "client.id": 43,
+        "clock.quantum-limit": 8192,
+        "device.api": "alsa",
+        "device.class": "sound",
+        "device.icon-name": "audio-card-analog",
+        "device.id": 45,
+        "device.profile.description": "Analog Surround 2.1",
+        "device.profile.name": "analog-surround-21",
+        "device.routes": 1,
+        "factory.id": 19,
+        "factory.name": "api.alsa.pcm.sink",
+--
+        "node.description": "Audient iD14 Analog Surround 2.1",
+        "node.driver": true,
+        "node.loop.name": "data-loop.0",
+        "node.max-latency": "8192/48000",
+        "node.name": "alsa_output.usb-Audient_Audient_iD14-00.analog-surround-21",
+        "node.nick": "Audient iD14",
+        "node.pause-on-idle": false,
+        "object.id": 56,
+        "object.path": "alsa:acp:iD14:3:playback",
+        "object.serial": 56,
+        "port.group": "playback",
+        "priority.driver": 1009,
+        "priority.session": 1009
+      },
+      "params": {
+        "EnumFormat": [
+          {
+            "mediaType": "audio",
+            "mediaSubtype": "raw",
+            "format": {
+              "default": "S32P",
+              "alt1": "S32P",
+              "alt2": "S32LE"
+            },
+            "rate": { "default": 48000, "min": 44100, "max": 96000 },
+            "channels": 3,
+--
+        "port.alias": "Audient iD14:playback_FL",
+        "port.direction": "in",
+        "port.group": "playback",
+        "port.id": 0,
+        "port.name": "playback_FL",
+        "port.physical": true,
+        "port.terminal": true
+      },
+      "params": {
+        "EnumFormat": [
+          {
+            "mediaType": "audio",
+            "mediaSubtype": "dsp",
+            "format": "F32P"
+          }
+        ],
+        "Meta": [
+          {
+            "type": "Header",
+            "size": 32
+          }
+--
+        "port.alias": "Audient iD14:monitor_FL",
+        "port.direction": "out",
+        "port.group": "playback",
+        "port.id": 0,
+        "port.monitor": true,
+        "port.name": "monitor_FL"
+      },
+      "params": {
+        "EnumFormat": [
+          {
+            "mediaType": "audio",
+            "mediaSubtype": "dsp",
+            "format": "F32P"
+          }
+        ],
+        "Meta": [
+          {
+            "type": "Header",
+            "size": 32
+          }
+        ],
+--
+        "port.alias": "Audient iD14:playback_FR",
+        "port.direction": "in",
+        "port.group": "playback",
+        "port.id": 1,
+        "port.name": "playback_FR",
+        "port.physical": true,
+        "port.terminal": true
+      },
+      "params": {
+        "EnumFormat": [
+          {
+            "mediaType": "audio",
+            "mediaSubtype": "dsp",
+            "format": "F32P"
+          }
+        ],
+        "Meta": [
+          {
+            "type": "Header",
+            "size": 32
+          }
+--
+        "port.alias": "Audient iD14:monitor_FR",
+        "port.direction": "out",
+        "port.group": "playback",
+        "port.id": 1,
+        "port.monitor": true,
+        "port.name": "monitor_FR"
+      },
+      "params": {
+        "EnumFormat": [
+          {
+            "mediaType": "audio",
+            "mediaSubtype": "dsp",
+            "format": "F32P"
+          }
+        ],
+        "Meta": [
+          {
+            "type": "Header",
+            "size": 32
+          }
+        ],
+--
+        "port.alias": "Audient iD14:playback_LFE",
+        "port.direction": "in",
+        "port.group": "playback",
+        "port.id": 2,
+        "port.name": "playback_LFE",
+        "port.physical": true,
+        "port.terminal": true
+      },
+      "params": {
+        "EnumFormat": [
+          {
+            "mediaType": "audio",
+            "mediaSubtype": "dsp",
+            "format": "F32P"
+          }
+        ],
+        "Meta": [
+          {
+            "type": "Header",
+            "size": 32
+          }
+--
+        "port.alias": "Audient iD14:monitor_LFE",
+        "port.direction": "out",
+        "port.group": "playback",
+        "port.id": 2,
+        "port.monitor": true,
+        "port.name": "monitor_LFE"
+      },
+      "params": {
+        "EnumFormat": [
+          {
+            "mediaType": "audio",
+            "mediaSubtype": "dsp",
+            "format": "F32P"
+          }
+        ],
+        "Meta": [
+          {
+            "type": "Header",
+            "size": 32
+          }
+        ],

@@ -1,0 +1,74 @@
+# /etc/skel/.bashrc
+#
+# This file is sourced by all *interactive* bash shells on startup,
+# including some apparently interactive shells such as scp and rcp
+# that can't tolerate any output.  So make sure this doesn't display
+# anything or bad things will happen !
+
+
+# Test for an interactive shell.  There is no need to set anything
+# past this point for scp and rcp, and it's important to refrain from
+# outputting anything in those cases.
+if [[ $- != *i* ]] ; then
+	# Shell is non-interactive.  Be done now!
+	return
+fi
+
+
+# Put your fun stuff here.
+
+git_branch() {
+# Yoink: https://wiki.gentoo.org/wiki/Bash#Environment_variables
+	branch="$(git branch 2>/dev/null | grep '^*' | colrm 1 2)"
+	if [ ! -z "$branch" ]; then
+		if [ -n "$(git status --porcelain)" ]; then
+			color="31"  # Red for changes
+		elif [ "$(git stash list)" ]; then
+			color="33"  # Yellow for stashed changes
+		else
+			color="32"  # Green for a clean state
+		fi
+		# https://www.nerdfonts.com/cheat-sheet
+		echo -e " \\e[0;${color}m${branch} \\e[0m"
+	fi
+}
+
+umask 077
+
+export PATH_DOTFILE="$HOME/dotfile"
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_DATA_HOME="$HOME/.local"
+export XDG_CACHE_HOME="$HOME/.cache"
+
+export GPG_TTY="$(tty)"
+export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+
+export LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+
+# PATH & PS1
+# note: 1. LOCAL (~/bin), 2. SYSTEM-LOCAL (/usr/local), 3. SYSTEM (/usr/)
+export PATH="$HOME/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin"
+export PS1="(\[\e[38;5;208m\]\l\[\e[0m\]|\[\e[38;5;22m\]\!\[\e[0m\]) \[\e[38;5;221m\]\u@\h\[\e[0m\] \$(git_branch)\[\e[38;5;147m\]\w\[\e[0m\]\n\[\e[38;5;206m\]\$\[\e[0m\] " # goddamn, don't ask. never again.
+
+export HISTSIZE=10000
+export HISTFILESIZE=10000
+shopt -s histappend
+
+export EDITOR="nvim"
+export VISUAL="vim"
+export PAGER="less"
+export MANPAGER="less -R --use-color -Dd+y -Du+g -DE+R -DSb*l -DPkc*"
+export BROWSER="firefox"
+
+export GREP_OPTIONS="--color=auto"
+
+if command -v vim > /dev/null 2>&1; then alias vi="vim"; fi
+if command -v bat > /dev/null 2>&1; then alias cat="bat -pp"; fi
+if command -v eza > /dev/null 2>&1; then alias ls="eza --group-directories-first --icons"; fi
+alias ip="ip -c=auto"
+
+# Safeties (don't remove future me, even if annoyed!)
+rm() { command rm -i "${@}"; }
+cp() { command cp -i "${@}"; }
+mv() { command mv -i "${@}"; }

@@ -1,0 +1,156 @@
+#!/bin/bash
+
+relink() {
+# Destructive unlink, clear, link
+	SRC="$1"; DST="$2"
+
+	# Need SRC and DST
+	if [[ "$SRC" == "" || "$DST" == "" ]]; then
+		return 1
+	fi
+
+	# Do the thing
+	unlink "$DST" > /dev/null 2>&1
+	rm -rf "$DST" > /dev/null 2>&1
+	ln -s "$SRC" "$DST"
+
+	# Did we do the thing?
+	if (( $? )); then
+		echo "* $SRC !! $DST"
+		return 1
+	else
+		echo "* $SRC -> $DST"
+		return 0
+	fi
+}
+
+dot_xdg() {
+# Dotfiles XDG-related actions
+	local BASE="$HOME/local"
+
+	echo -e "\n>> dot_xdg"
+
+	# Create base dir
+	echo -e "\n> creating base"
+	if [[ -d "$BASE" ]]; then
+		echo "* exists: $BASE"
+	else
+		echo "* creating: $BASE"
+		mkdir -p "$BASE"
+	fi
+
+	# Update XDG
+	echo -e "\n> xdg-user-dirs"
+	xdg-user-dirs-update --set DESKTOP	"$BASE/desktop"
+	xdg-user-dirs-update --set DOCUMENTS	"$BASE/document"
+	xdg-user-dirs-update --set DOWNLOAD	"$BASE/download"
+	xdg-user-dirs-update --set MUSIC	"$BASE/music"
+	xdg-user-dirs-update --set PICTURES	"$BASE/picture"
+	xdg-user-dirs-update --set PUBLICSHARE	"$BASE/public"
+	xdg-user-dirs-update --set TEMPLATE	"$BASE/template"
+	xdg-user-dirs-update --set VIDEO	"$BASE/video"
+
+	# Create subdirs
+	for DIR in desktop document download music picture public template video; do
+		if [[ -d "$BASE/$DIR" ]]; then
+			echo "* $DIR: exists"
+		else
+			echo "* $DIR: creating"
+			mkdir "$BASE/$DIR"
+		fi
+	done
+}
+
+
+dot_link() {
+# Dotfiles linking related actions
+	echo -e "\n>> links"
+
+	# Shell(s)
+	echo -e "\n> shell (bash)"
+	relink "$PATH_DOTFILE/src/user/bashrc" "$HOME/.bashrc"
+	relink "$PATH_DOTFILE/src/user/bash_profile" "$HOME/.bash_profile"
+	relink "$PATH_DOTFILE/src/user/bash_logout" "$HOME/.bash_logout"
+
+	# Bin
+	echo -e "\n> bin"	
+	relink "$PATH_DOTFILE/src/user/bin" "/home/$(logname)/bin"
+
+	# Config
+	CONFIG_T="$(ls "$PATH_DOTFILE/src/user/config")"
+	echo -e "\n> config"
+	for T in ${CONFIG_T[@]}; do
+		relink "$PATH_DOTFILE/src/user/config/$T" "$XDG_CONFIG_HOME/$T"
+	done
+    
+	# Local
+	echo -e "\n> local"
+	relink "$PATH_DOTFILE/src/user/local/share/custom" "$XDG_DATA_HOME/custom"
+	relink "$PATH_DOTFILE/src/user/local/share/fonts" "$XDG_DATA_HOME/fonts"
+
+	# Secrets
+	if [[ -d "$PATH_DOTFILE/secrets" ]]; then
+		local PATH_SECRETS="$PATH_DOTFILE/secrets"
+
+		if [[ -f "$PATH_SECRETS/gitconfig" ]]; then
+		# Gitconfig
+			relink "$PATH_SECRETS/gitconfig" "$XDG_CONFIG_HOME/.gitconfig"
+		fi
+
+		if [[ -d "$PATH_SECRETS/gnupg" ]]; then
+		# Gnupg
+			relink "$PATH_SECRETS/gnupg" "$XDG_CONFIG_HOME/.gnupg"
+		fi
+
+		if [[ -d "$PATH_SECRETS/ssh" ]]; then
+		# SSH
+			relink "$PATH_SECRETS/ssh" "$XDG_CONFIG_HOME/.ssh"
+		fi
+	fi
+}
+
+dot_font() {
+# Dotfile font related actions
+	local FAMILY=(
+		monospace
+		serif
+		sans-serif
+		cursive
+		fantasy
+	)
+	
+	# Refresh font-cache
+	echo -e "\n>> refreshing font cache"
+	fc-cache -f > /dev/null
+
+	# Print family, and its match
+	for F in "${FAMILY[@]}"; do
+		echo -n "* $F: "
+		fc-match "$F"
+	done
+}
+
+dot_refresh() {
+# Refresh all dotfiles
+	: "${PATH_DOTFILE:=$HOME/dotfile}"
+	: "${XDG_CONFIG_HOME:=$HOME/.config}"
+	: "${XDG_DATA_HOME:=$HOME/.local/share}"
+
+	# Avoid creating mismatched links!
+	if [[ $(logname) != $(whoami) ]]; then
+		echo "user mismatch? quitting."
+		return 1
+	fi
+
+	# Run
+	echo "sourcing from $PATH_DOTFILE"
+	dot_xdg
+	dot_link
+	dot_font
+
+	return 0
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	dot_refresh
+fi

@@ -1,0 +1,155 @@
+#!/bin/bash
+# Tuomo Björk
+# 2025-07-04
+
+notif() {
+# Notify user
+	local MSG="$1"
+	local T_MS=750
+
+	echo "$MSG"
+	notify-send --expire-time $T_MS "$MSG"
+}
+
+camera_sfx() {
+# Play audio effect
+
+	# Require: mpv
+	if ! command -v mpv > /dev/null 2>&1; then
+		echo "mpv not in path, skipping sfx!"
+		return 1
+	fi
+
+	mpv --loop=no --start=3.35 --end=3.65 \
+		"$XDG_DATA_HOME/custom/sfx/camera-focusing-and-shutter.wav" > /dev/null 2>&1 &
+}
+
+wl_screenshot() {
+	: "${XDG_DATA_HOME:=$HOME/.local/share}"
+	local PATH_PICTURES="$(xdg-user-dir PICTURES)"
+	local PATH_WORK=""
+	local PATH_DST=""
+
+	local UNIX_T="$(date +%s%N)"
+	local YM="$(date +%Y-%m)"
+
+	
+	# Session check
+	if [[ "$XDG_SESSION_TYPE" != "wayland" ]]; then
+		echo "session type is not wayland!"
+		return 1
+	fi
+
+	# Require: grim (full & area)
+	if ! command -v grim > /dev/null 2>&1; then
+		notif "grim not in path, but is required!"
+		return 1
+	fi
+
+	# Require: slurp (area)
+	if [[ "$1" == "area" ]]; then
+		if ! command -v slurp > /dev/null 2>&1; then
+			notif "slurp not in path, but is required"
+			return 1
+		fi
+	fi
+
+	# Create working directory
+	if [[ -d /dev/shm ]]; then
+		PATH_WORK="/dev/shm/$USER"
+	else
+		PATH_WORK="/tmp/$USER"
+	fi
+	mkdir -p "$PATH_WORK"
+
+	# Private working directory
+	chmod 700 "$PATH_WORK"
+	if (( $? )); then
+		# Fallback
+		PATH_WORK="/tmp"
+	fi
+
+	# Destination directory
+	if [[ "$PATH_PICTURES" == "" ]]; then
+		PATH_DST="$HOME/screenshot"
+	else
+		PATH_DST="$PATH_PICTURES/screenshot/$YM"
+	fi
+	mkdir -p "$PATH_DST"
+
+	FILE_SRC="$PATH_WORK/screenshot-$UNIX_T"
+	FILE_DST="$PATH_DST/$UNIX_T"
+
+	# Write region to FILE_SRC
+	if [[ "$1" == "area" ]]; then
+		echo "region: area"
+		slurp | grim -t png -l 0 -g - "$FILE_SRC"
+		if (( ! $? )); then camera_sfx; fi
+	else
+		echo "region: full"
+		camera_sfx
+		grim -t png -l 0 "$FILE_SRC"
+	fi
+
+	if (( $? )); then
+		echo "write: fail"
+		return 1
+	else
+		echo "write: $FILE_SRC"
+	fi
+
+	# Encode
+	#
+	# JXL is massively faster than PNG and AVIF to encode, and beats PNG
+	# in filesize even at low effort values (even --effort=0).
+	#
+	# Opting to prefer JXL in spite of lesser compatibility, as the output
+	# will be lossless, and can be later re-encoded if need be.
+	#
+	# Area screenshots copied into the clipboard will always be PNG, as
+	# the expectation is it will be smaller (and thus faster to encode), and
+	# often shared immediately via a channel that requires compatibility.
+	if [[ -f "$FILE_SRC" ]]; then
+		if command -v cjxl > /dev/null 2>&1; then
+			# JXL (cjxl)
+			cjxl "$FILE_SRC" "$FILE_DST.jxl" --quality=100 --effort=2 --num_threads=$(nproc)
+
+		elif command -v oxipng > /dev/null 2>&1; then
+			# PNG (via oxipng)
+			oxipng "$FILE_SRC" --strip safe --opt 2 --out "$FILE_DST.png"
+
+		else
+			# Fallback to simple copy
+			cp "$FILE_SRC" "$FILE_DST.png"
+
+		fi
+	else
+		echo "read: fail"
+		return 1
+	fi
+
+	# Area -> clipboard
+	if [[ "$1" == "area" ]]; then
+		if command -v oxipng > /dev/null 2>&1; then
+			oxipng "$FILE_SRC" --stdout --strip safe --opt 2 | wl-copy --type image/png
+		else
+			wl-copy --type image/png < "$FILE_SRC"
+		fi
+	fi
+
+	# Cleanup
+	rm "$FILE_SRC"
+	if (( ! $? )); then
+		echo "clean: $FILE_SRC"
+		return 0
+	else
+		echo "clean: fail"
+		return 2
+	fi
+
+	return 0
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	wl_screenshot "$1"
+fi

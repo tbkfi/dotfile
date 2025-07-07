@@ -1,0 +1,196 @@
+/* This file uses GTK css specs, read more at:
+ * https://docs.gtk.org/gtk3/css-overview.html
+*/
+
+/* Colour Palette */
+@define-color clr-black rgba(20, 20, 20, 1);
+@define-color clr-black-half rgba(20, 20, 20, 0.8);
+
+@define-color clr-white rgba(250, 240, 233, 1);
+@define-color clr-white-half rgba(250, 240, 233, 0.8);
+
+@define-color clr-grey rgba(112, 112, 112, 1);
+@define-color clr-grey-half rgba(112, 112, 112, 0.8);
+
+@define-color clr-yellow rgba(255, 219, 112, 1);
+@define-color clr-yellow-half rgba(255, 219, 112, 0.8);
+
+@define-color clr-red rgba(255, 64, 64, 1);
+@define-color clr-red-half rgba(255, 64, 64, 0.8);
+
+@define-color clr-blue rgba(64, 112, 255, 1);
+@define-color clr-blue-half rgba(64, 112, 255, 0.8);
+
+@define-color clr-green rgba(112, 255, 64, 1);
+@define-color clr-green-half rgba(112, 255, 64, 0.8);
+
+@define-color clr-orange rgba(255, 121, 64, 1);
+@define-color clr-orange-half rgba(255, 121, 64, 0.8);
+
+/* Animations & Keyframes */
+@keyframes blink-blue {
+	0% {
+	}
+	75% {
+		color: @clr-blue;
+		border: 2px solid @clr-blue;
+	}
+	100% {
+	}
+}
+
+@keyframes blink-red {
+	0% {
+	}
+	75% {
+		color: @clr-red;
+		border: 2px solid @clr-red;
+	}
+	100% {
+	}
+}
+@keyframes blink-orange {
+	0% {
+	}
+	75% {
+		color: @clr-orange;
+		border: 2px solid @clr-orange;
+	}
+	100% {
+	}
+}
+
+/* Waybar bounds */
+* {
+	font-family: "Maple Mono NF", monospace;
+	font-size: 0.75rem;
+	padding: 0;
+	margin: 0;
+}
+window#waybar {
+	background: transparent;
+}
+.horizontal {
+	background: transparent;
+	margin: 0 2px 0 2px;
+}
+
+/* Modules */
+.modules-left {
+	background: transparent;
+	border-radius: 4px;
+	padding: 0 0.125rem 0 0.125rem;
+}
+.modules-center {
+	background: transparent;
+	border-radius: 4px;
+	padding: 0 0.125rem 0 0.125rem;
+}
+.modules-right {
+	background-color: transparent;
+	border-radius: 4px;
+	padding: 0 0.125rem 0 0.125rem;
+}
+
+#battery, #memory, #disk, #cpu, #temperature,
+#pulseaudio, #clock, #backlight, 
+#mode, #workspaces, #network {
+	background: @clr-black-half;
+	color: @clr-white;
+	padding: 0;
+	margin: 2px 0 4px 0;
+	padding: 0 8px 0 8px;
+	border-radius: 4px;
+}
+
+/* LEFT-MODULE */
+#battery {
+}
+#battery.warning {
+	color: @clr-orange;
+	background-color: @clr-black;
+	border: 2px solid @clr-orange;
+}
+#battery.critical {
+	color: @clr-white;
+	background-color: @clr-black-half;
+	border: 2px solid @clr-red;
+
+	animation-name: blink-red;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+#battery.charging {
+	color: @clr-green;
+	background-color: @clr-black-half;
+	border: 2px solid @clr-green;
+}
+#battery.plugged {
+	color: @clr-blue;
+}
+#battery.full {
+	color: @clr-blue;
+}
+
+#memory {
+}
+
+#disk {
+}
+
+#cpu {
+}
+
+#temperature {
+}
+#temperature.critical {
+	color: @clr-orange;
+}
+
+/* CENTER-MODULE */
+#pulseaudio.muted {
+	color: @clr-grey;
+}
+
+#clock {
+	background-color: @clr-black;
+}
+
+#backlight {
+}
+
+/* RIGHT-MODULE */
+#mode {
+	color: @clr-white;
+
+	animation-name: blink-blue;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+
+#workspaces button {
+	color: @clr-white;
+	margin: 2px 2px 2px 2px;
+}
+#workspaces button.focused {
+	background-color: @clr-grey;
+	color: @clr-white;
+}
+#workspaces button.hover {
+	background-color: @clr-black;
+	color: @clr-red;
+
+	animation-name: blink-blue;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+#workspaces button.urgent {
+	background-color: @clr-black;
+	color: @clr-red;
+}
+
+#network {
+}
+#network.disconnected {
+	color: @clr-red;
+}

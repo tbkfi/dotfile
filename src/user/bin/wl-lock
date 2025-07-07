@@ -1,0 +1,10 @@
+#!/bin/bash
+
+wl_lock() {
+# Lock the screen on wayland
+	swaylock -eF \
+		--font "Maple Mono NF" \
+		--font-size 48
+}
+
+wl_lock

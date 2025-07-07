@@ -1,0 +1,96 @@
+// -*- mode: jsonc -*-
+{
+	// Basic layout
+	"position": "top", // top|bottom|left|right
+	"height": 32,
+	"spacing": 2,
+
+	"modules-left": [
+		"battery",
+		"memory",
+		"disk",
+		"cpu",
+		"temperature"
+	],
+	"modules-center": [
+		"pulseaudio",
+		"clock",
+		"backlight"
+	],
+	"modules-right": [
+		//"sway/window"
+		"sway/mode",
+		"sway/workspaces",
+		"network"
+	],
+
+	// LEFT-MODULE
+	"battery": {
+		"interval": 15,
+		"states": {
+			"warning": 30,
+			"critical": 15
+		},
+		"format": "{icon}  {capacity}% | {power:0.2f} W | {time} | h:{health}, c:{cycles}",
+		"format-charging": "  {capacity}% | {power:0.2f} W | {time} | h:{health}, c:{cycles}",
+		"format-plugged": "  {capacity}% | {power:0.2f} W | h:{health}, c:{cycles}",
+		"format-icons": ["", "", "", "", ""]
+	},
+	"memory": {
+		"interval": 15,
+		"format": "ram: {used:0.2f} / {avail:0.2f} GiB",
+		"tooltip": false
+	},
+	"disk": {
+		"interval": 30,
+		"format": "fs: {specific_free:0.2f} GB",
+		"unit": "GB"
+	},
+	"cpu": {
+		"interval": 15,
+		"format": "cpu: {usage}% | {min_frequency:0.2f}, {avg_frequency:0.2f}, {max_frequency:0.2f} GHz",
+		"tooltip": true
+	},
+	"temperature": {
+		"interval": 15,
+		"critical-threshold": 70,
+		"format": "T: {temperatureC}°C",
+		"format-critical": "T: {temperatureC}°C ⚠"
+	},
+
+	// CENTER-MODULE
+	"pulseaudio": {
+		"format": "{icon} {volume}",
+		"format-muted": "mut.",
+		"format-icons": {
+			"default": ["vol.", "vol.", "vol."]
+		},
+		"on-click": "pavucontrol"
+	},
+	"clock": {
+		"interval": 1,
+		"format": "{:%H:%M:%S - %A, %Y-%m-%d [W%V]}",
+		"tooltip-format": "<big>{:%A, %B %d, %Y}</big>\n<tt><big>{calendar}</big></tt>"
+	},
+	"backlight": {
+		"format": "{percent} {icon}",
+		"format-icons": ["br."]
+	},
+
+	// RIGHT-MODULE
+	"sway/workspaces": {
+		"disable-scroll": true,
+		"format": "[{name}{icon}]",
+		"format-icons": {
+			"default": "",
+			"focused": "",
+			"urgent": "!"
+		}
+	},
+	"network": {
+		"interval": 10,
+		"format-ethernet": "ETH  {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
+		"format-wifi": "WIFI '{essid}' @ {signaldBm}dBm | {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
+		"format-disconnected": "⚠ LINK DOWN ⚠"
+	}
+}
