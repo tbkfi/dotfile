@@ -1,0 +1,8 @@
+pipewire.service
+pipewirse.socket
+wireplumber.service
+wireplumber.socket
+gpg-agent.service
+gpg-agent-ssh.service
+gpg-agent-extra.service
+mako.service

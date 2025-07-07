@@ -1,0 +1,8 @@
+NetworkManager.service
+chronyd.service
+greetd.service
+cups.service
+bluetooth.service
+pcscd.service
+pcscd.socket
+tlp.service
