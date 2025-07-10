@@ -19,6 +19,9 @@ app-emulation/qemu gnutls # by: app-emulation (vnc)
 net-dns/dnsmasq script # by: libvirt
 net-libs/gnutls pkcs11 tools # by: libvirt
 
+media-gfx/imagemagick heif jpeg jpegxl lcms lzma opencl raw svg tiff truetype webp xml zip # want
+media-libs/libheif x265 # by: media-gfx/imagemagick (heif)
+
 
 # @dot-desktop
 media-video/ffmpeg dav1d drm blueray cdio chromaprint chromium codec2 dvd gme jpegxl lame lcms libaom libplacebo opencl opengl openh264 opus rubberband shaderc svg svt-av1 vorbis vpx webp x264 x265 zimg # want
