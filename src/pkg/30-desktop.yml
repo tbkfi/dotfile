@@ -96,6 +96,13 @@ foot:
     gentoo: gui-apps/foot
     arch: foot
 
+nnn:
+# Terminal file manager
+  debian: nnn
+  fedora: nnn
+  gentoo: app-misc/nnn
+  arch: nnn
+
 libwacom:
 # Wacom tablet support
     debian: libwacom9 libwacom-common

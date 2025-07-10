@@ -29,6 +29,8 @@ gui-apps/grim jpeg # want
 
 gui-apps/waybar network pipewire pulseaudio upower wifi # want
 
+app-misc/nnn gitstatus nerdfonts # want
+
 
 # @dot-user
 www-client/chromium -rar # license: decline UNRAR
