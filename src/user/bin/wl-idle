@@ -1,0 +1,59 @@
+#!/bin/bash
+
+wl_idle() {
+# Idle actions for wayland
+	: "${PATH_DOTFILE:=$HOME/dotfile}"
+	
+	# Require 'swayidle'
+	if ! command -v swayidle > /dev/null 2>&1; then
+		echo "swayidle not in path!"
+		return 1
+	fi
+
+	# Require 'swaylock'
+	if ! command -v swaylock > /dev/null 2>&1; then
+		echo "swaylock not in path!"
+		return 1
+	fi
+
+	# Idle parameters
+	local T_LOCK_S=300
+	local T_WARN_S=30
+	local T_WARN_MS=$(( $T_WARN_S * 1000 ))
+	local T_SUSPEND_S=600
+
+	local ACT_WARN="notify-send --urgency=critical -t $T_WARN_MS \"SYSTEM LOCK in ${T_WARN_S}s ...\""
+	local ACT_LOCK="swaylock -c 000000"
+	local ACT_SUSP="systemctl suspend"
+
+	local T_RESUME_S=10
+
+	while true; do
+	# Systemd service? I'll pass ...
+		if [[ -f "$PATH_DOTFILE/src/user/bin/wl-lock" ]]; then
+
+			ACT_LOCK="bash -c 'source "$PATH_DOTFILE/src/user/bin/wl-lock" && wl_lock'"
+
+			echo "idle: custom"
+			swayidle -w \
+				timeout $(( $T_LOCK_S - $T_WARN_S )) "$ACT_WARN" \
+				timeout $T_LOCK_S "$ACT_LOCK" \
+				timeout $T_SUSPEND_S "$ACT_SUSP" \
+				before-sleep "$ACT_LOCK"
+		else
+			echo "idle: defaults"
+			swayidle -w \
+				timeout $(( $T_LOCK_S - $T_WARN_S )) "$ACT_WARN" \
+				timeout $T_LOCK_S "$ACT_LOCK" \
+				timeout $T_SUSPEND_S "$ACT_SUSP" \
+				before-sleep "$ACT_LOCK"
+		fi
+		echo "Swayidle exited. Restarting in $T_RESUME_S seconds..."
+		sleep $T_RESUME_S
+	done
+}
+
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	wl_idle
+fi
