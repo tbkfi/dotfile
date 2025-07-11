@@ -1,5 +1,6 @@
 #!/bin/bash
-
+# Tuomo Björk
+# 2025-06-24
 
 emerge_build_load() {
 # Calculate appropriate values for EMERGE_JOBS, EMERGE_LOAD.
@@ -94,41 +95,41 @@ portage_sets() {
 # Update Portage sets
 	echo -e "\n>> portage sets"
 
-        # Require yq for parsing
-        if ! command -v yq > /dev/null 2>&1; then
+	# Require yq for parsing
+	if ! command -v yq > /dev/null 2>&1; then
 		emerge -v app-misc/yq
-                if ! command -v yq > /dev/null 2>&1; then
+		if ! command -v yq > /dev/null 2>&1; then
 			echo "missing yq, bye"
 			return 1
 		fi
-        fi
+	fi
 
-        # Sets are sourced from PATH_DOTFILE
-        if [[ ! -d "$PATH_DOTFILE/src/pkg" ]]; then
-                echo "missing pkg sources, bye"
-                return 1
-        fi
+	# Sets are sourced from PATH_DOTFILE
+	if [[ ! -d "$PATH_DOTFILE/src/pkg" ]]; then
+		echo "missing pkg sources, bye"
+		return 1
+	fi
 
-        # Reset portage sets at PATH_PORTAGE
-        rm -rf "$PATH_PORTAGE/sets"
+	# Reset portage sets at PATH_PORTAGE
+	rm -rf "$PATH_PORTAGE/sets"
 	if (( $? )); then
 		echo "missing permissions? quitting."
 		return 1
 	fi
-        mkdir -p "$PATH_PORTAGE/sets"
+	mkdir -p "$PATH_PORTAGE/sets"
 
-        # Parse pkg files (yq), split space-delimited entries (xargs)
+	# Parse pkg files (yq), split space-delimited entries (xargs)
 	# *grumble grumble* it's not neat! *grumble grumble*
-        echo "* updating @dot-base"
-        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/00-base.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-base"
-        echo "* updating @dot-liblang"
-        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/10-liblang.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-liblang"
-        echo "* updating @dot-utility"
-        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/20-utility.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-utility"
-        echo "* updating @dot-desktop"
-        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/30-desktop.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-desktop"
-        echo "* updating @dot-user"
-        yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/40-user.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-user"
+	echo "* updating @dot-base"
+	yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/00-base.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-base"
+	echo "* updating @dot-liblang"
+	yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/10-liblang.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-liblang"
+	echo "* updating @dot-utility"
+	yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/20-utility.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-utility"
+	echo "* updating @dot-desktop"
+	yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/30-desktop.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-desktop"
+	echo "* updating @dot-user"
+	yq -r '.[] | .gentoo' "$PATH_DOTFILE/src/pkg/40-user.yml" | xargs -n1 > "$PATH_PORTAGE/sets/dot-user"
 	chmod 755 "$PATH_PORTAGE"/sets && chmod 644 "$PATH_PORTAGE"/sets/*
 }
 
@@ -153,6 +154,7 @@ portage_refresh() {
 	portage_flags
 	portage_sets
 }
+
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 	portage_refresh
