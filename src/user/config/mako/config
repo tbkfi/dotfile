@@ -1,0 +1,23 @@
+layer=overlay
+anchor=top-right
+default-timeout=3000
+max-visible=8
+
+font=monospace 16
+text-color=#FFFFFFFF
+
+icons=1
+max-icon-size=32
+icon-location=left
+
+background-color=#000000BB
+width=500
+height=250
+
+border-color=#FFFFFFFF
+border-size=2
+border-radius=4
+
+[urgency=high]
+border-color=#F54242FF
+default-timeout=0
