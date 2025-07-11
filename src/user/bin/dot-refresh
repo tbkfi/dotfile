@@ -1,4 +1,6 @@
 #!/bin/bash
+# Tuomo Björk
+# 2025-06-24
 
 relink() {
 # Destructive unlink, clear, link
@@ -147,14 +149,17 @@ dot_refresh() {
 		return 1
 	fi
 
-	# Run
 	echo "sourcing from $PATH_DOTFILE"
+	if [[ ! -d "$PATH_DOTFILE" ]]; then
+		echo "missing dotfile! quitting."
+		return 1
+	fi
+
 	dot_xdg
 	dot_link
 	dot_font
-
-	return 0
 }
+
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 	dot_refresh
