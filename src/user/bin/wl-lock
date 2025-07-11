@@ -2,9 +2,64 @@
 
 wl_lock() {
 # Lock the screen on wayland
-	swaylock -eF \
-		--font "Maple Mono NF" \
-		--font-size 48
+	: "${PATH_DOTFILE:=$HOME/dotfile}"
+	local IMG_BG="$PATH_DOTFILE/walls/lock.png"
+	local OPTS
+
+	# Different look for image/color fill
+	if [[ -f "$IMG_BG" ]]; then
+		OPTS="--image "$IMG_BG" -s fill"
+	else
+		OPTS="--color 333333"
+	fi
+
+	# Lock
+	local CLR_BLACK="000000"
+	local CLR_WHITE="FFFFFF"
+	local CLR_GREY="111111"
+
+	local CLR_RED="E83838"
+	local CLR_BLUE="3881E8"
+
+	local CLR_GREEN="38E864"
+	local CLR_YELLOW="F2E18D"
+	local CLR_PURPLE="#7941E8"
+
+	swaylock --show-failed-attempts \
+		--font "Maple Mono NF" --font-size 64 \
+		--show-keyboard-layout --indicator-caps-lock \
+		--indicator-radius 320 --indicator-thickness 80 \
+		--bs-hl-color              $CLR_BLACK \
+		--caps-lock-bs-hl-color    $CLR_BLACK \
+		--caps-lock-key-hl-color   $CLR_YELLOW \
+		--inside-color             000000 \
+		--inside-clear-color       000000 \
+		--inside-caps-lock-color   000000 \
+		--inside-ver-color         000000 \
+		--inside-wrong-color       000000 \
+		--key-hl-color             $CLR_YELLOW \
+		--layout-bg-color          000000 \
+		--layout-border-color      000000 \
+		--layout-text-color        $CLR_GREY \
+		--line-color               $CLR_BLACK \
+		--line-clear-color         $CLR_BLUE \
+		--line-caps-lock-color     $CLR_YELLOW \
+		--line-ver-color           $CLR_PURPLE \
+		--line-wrong-color         $CLR_RED \
+		--ring-color               $CLR_GREY \
+		--ring-clear-color         $CLR_BLACK \
+		--ring-caps-lock-color     $CLR_BLACK \
+		--ring-ver-color           $CLR_YELLOW \
+		--ring-wrong-color         $CLR_RED \
+		--separator-color          $CLR_YELLOW \
+		--text-color               $CLR_YELLOW \
+		--text-clear-color         $CLR_GREY \
+		--text-caps-lock-color     $CLR_GREY \
+		--text-ver-color           $CLR_GREY \
+		--text-wrong-color         $CLR_RED \
+		$OPTS
 }
 
-wl_lock
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	wl_lock
+fi
