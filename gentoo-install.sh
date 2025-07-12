@@ -74,7 +74,7 @@ gentoo_boot() {
 
 	# Initramfs
 	mkdir -p /etc/dracut.conf.d
-	cp "$HOME/dotfile/src/sys/etc/dracut.conf.d/luks.conf" /etc/dracut.conf.d/
+	cp "$PATH_DOTFILE"/src/sys/etc/dracut.conf.d/* /etc/dracut.conf.d/
 	echo -e "\n# DRACUT"
 	cat /etc/dracut.conf.d/luks.conf
 
@@ -103,17 +103,16 @@ gentoo_finalise() {
 # Finalise by setting up minimal system services, and a user
 
 	# Machine ID & Hostname
-	stat /etc/machine-id > /dev/null 2>&1
-	if (( $? )); then
+	if [[ ! -s /etc/machine-id ]]; then
 		systemd-machine-id-setup
 	fi
 	echo "$DEP_HOSTNAME" > /etc/hostname
 
 	# Configurations
-	cp "$PATH_DOTFILE/dotfile/src/sys/etc/chrony.conf" /etc/
+	cp "$PATH_DOTFILE/src/sys/etc/chrony.conf" /etc/chrony.conf
 
 	mkdir -p /etc/greetd
-	cp "$PATH_DOTFILE/src/sys/etc/greetd/config.toml" /etc/greetd/
+	cp "$PATH_DOTFILE/src/sys/etc/greetd/config.toml" /etc/greetd/config.toml
 
 
 	# System services/sockets
