@@ -23,9 +23,10 @@ wl_lock() {
 
 	local CLR_GREEN="38E864"
 	local CLR_YELLOW="F2E18D"
-	local CLR_PURPLE="#7941E8"
+	local CLR_PURPLE="7941E8"
 
-	swaylock --show-failed-attempts \
+	swaylock --daemonize \
+		--show-failed-attempts \
 		--font "Maple Mono NF" --font-size 64 \
 		--show-keyboard-layout --indicator-caps-lock \
 		--indicator-radius 320 --indicator-thickness 80 \
