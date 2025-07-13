@@ -27,6 +27,13 @@ qalculate:
     gentoo: sci-libs/libqalculate sci-calculators/qalculate-gtk
     arch: libqalculate qalculate-gtk
 
+wireshark:
+# Network protocol analyser
+    debian: wireshark
+    fedora: wireshark
+    gentoo: net-analyzer/wireshark
+    arch: wireshark
+
 fuse3:
 # Userspace filesystems
     debian: fuse3
