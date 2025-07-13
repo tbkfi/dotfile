@@ -62,3 +62,6 @@ media-libs/babl introspection lcms # by: media-gfx/gimp
 media-libs/gegl introspection lcms cairo # by: media-gfx/gimp
 
 media-video/mpv bluray dvd jpeg lcms rubberband sixel tools # want
+
+net-analyzer/wireshark maxminddb sdjournal smi wifi http2 http3 opus # want
+dev-qt/qtmultimedia vaapi opengl # by: net-analyzer/wireshark (gui)
