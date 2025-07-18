@@ -96,6 +96,6 @@ fprintd:
     gentoo: sys-auth/fprintd
     arch: fprintd libfprint
 
-gentools:
+gentoo-tools:
 # Ebuild utility
-    gentoo: app-portage/eix
+    gentoo: app-portage/eix app-eselect/eselect-repository
