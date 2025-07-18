@@ -60,6 +60,13 @@ gentoo_install() {
 	fi
 	emerge -v --depclean
 	echo ""
+
+	# Other Gentoo-specific tasks
+	eselect repository list
+	if (( ! $? )); then
+		eselect repository enable guru
+		emaint sync -r guru
+	fi
 }
 
 gentoo_boot() {
