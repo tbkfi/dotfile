@@ -139,6 +139,13 @@ mpv:
     gentoo: media-video/mpv
     arch: mpv
 
+yazi:
+# File manager
+    debian: yazi
+    fedora: yazi
+    gentoo: app-misc/yazi
+    arch: yazi
+
 rubberband:
 # Audio manip. (tempo/pitch)
     debian: rubberband-cli

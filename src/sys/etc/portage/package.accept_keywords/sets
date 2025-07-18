@@ -10,3 +10,5 @@ mail-client/thunderbird ~amd64 # want
 net-misc/moonlight ~amd64 # no-stable
 
 media-gfx/gimp ~amd64 # feature: >=3.0 Wayland supercedes X, missing stable.
+
+app-misc/yazi ~amd64 # no-stable, guru
