@@ -10,7 +10,7 @@ sort_reverse   = false
 sort_dir_first = true
 sort_translit  = false
 linemode       = "none"
-show_hidden    = false
+show_hidden    = true
 show_symlink   = true
 scrolloff      = 5
 mouse_events   = [ "click", "scroll" ]
@@ -22,7 +22,7 @@ tab_size        = 4
 max_width       = 600
 max_height      = 900
 cache_dir       = ""
-image_delay     = 30
+image_delay     = 0
 image_filter    = "triangle"
 image_quality   = 75
 ueberzug_scale  = 1
@@ -83,7 +83,7 @@ micro_workers    = 10
 macro_workers    = 10
 bizarre_retry    = 3
 image_alloc      = 536870912  # 512MB
-image_bound      = [ 5000, 5000 ]
+image_bound      = [ 16000, 16000 ]
 suppress_preload = false
 
 [plugin]
