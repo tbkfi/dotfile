@@ -87,8 +87,9 @@ dot_link() {
     
 	# Local
 	echo -e "\n> local"
-	relink "$PATH_DOTFILE/src/user/local/share/custom" "$XDG_DATA_HOME/custom"
-	relink "$PATH_DOTFILE/src/user/local/share/fonts" "$XDG_DATA_HOME/fonts"
+	relink "$PATH_DOTFILE/src/user/local/share/custom" "$XDG_DATA_HOME/share/custom"
+	relink "$PATH_DOTFILE/src/user/local/share/fonts" "$XDG_DATA_HOME/share/fonts"
+	relink "$PATH_DOTFILE/src/user/local/share/applications" "$XDG_DATA_HOME/share/applications"
 
 	# Secrets
 	if [[ -d "$PATH_DOTFILE/secrets" ]]; then
