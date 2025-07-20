@@ -7,6 +7,9 @@ sys-libs/libcap static-libs # by: app-containers/lxc
 net-libs/nodejs npm # want
 net-libs/ngtcp2 gnutls # by: net-libs/nodejs
 
+media-libs/libavif dav1d extras libyuv # want
+media-libs/libheif openh264 x265 # want
+
 
 # @dot-utility
 app-crypt/pinentry qt6 # want (reluctantly)
@@ -19,8 +22,7 @@ app-emulation/qemu gnutls # by: app-emulation (vnc)
 net-dns/dnsmasq script # by: libvirt
 net-libs/gnutls pkcs11 tools # by: libvirt
 
-media-gfx/imagemagick heif jpeg jpegxl lcms lzma opencl raw svg tiff truetype webp xml zip # want
-media-libs/libheif x265 # by: media-gfx/imagemagick (heif)
+media-gfx/imagemagick fontconfig heif jpeg jpegxl lcms lzma opencl openmp raw svg tiff truetype webp xml zip # want
 
 
 # @dot-desktop
