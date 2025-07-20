@@ -300,3 +300,10 @@ iotop:
     fedora: iotop
     gentoo: sys-process/iotop
     arch: iotop
+
+7zip:
+# File archiver
+    debian: 7zip
+    fedora: 7zip
+    gentoo: app-arch/7zip
+    arch: 7zip
