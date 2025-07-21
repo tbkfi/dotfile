@@ -1,0 +1,39 @@
+#!/bin/bash
+# Tuomo Björk
+
+remote_umount() {
+# Attempt to umount existing remote targets
+
+	# Using sudo without '-E' would attempt to
+	# use 'root' homedir.
+	if [[ "$(whoami)" != "$(logname)" ]]; then
+		local PATH_REMOTE="/home/$(logname)/remote"
+	else
+		local PATH_REMOTE="$HOME/remote"
+	fi
+
+	local T_ALL="$(ls "$PATH_REMOTE")"
+
+	echo -e "unmounting from $PATH_REMOTE\n"
+
+	echo "> unmounting remote(s)"
+	for T in $T_ALL; do
+		mountpoint "$PATH_REMOTE/$T" > /dev/null 2>&1
+		if (( ! $? )); then
+			umount "$PATH_REMOTE/$T" > /dev/null 2>&1
+			if (( $? )); then
+				echo "* $PATH_REMOTE/$T: FAIL"
+			else
+				echo "* $PATH_REMOTE/$T: OK"
+			fi
+		fi
+	done
+	echo "done"
+
+	return 0
+}
+
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	remote_umount
+fi

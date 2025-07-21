@@ -1,0 +1,64 @@
+#!/bin/bash
+# Tuomo Björk
+
+remote_mount() {
+# Attempt to mount defined remote targets
+
+	# Using sudo without '-E' would attempt to
+	# use 'root' homedir.
+	if [[ "$(whoami)" != "$(logname)" ]]; then
+		if [[ -d "/home/$(logname)" ]]; then
+			XDG_CONFIG_HOME="/home/$(logname)/.config"
+			local D_MNT="/home/$(logname)/remote"
+		fi
+	fi
+	: "${XDG_CONFIG_HOME:=$HOME/.config}"
+	: "${D_MNT:=$HOME/remote}"
+	
+	local D_TARGETS="$XDG_CONFIG_HOME/dotfile/remote"
+	
+	# Remote target details are sourced from ...
+	echo -e "sourcing from $D_TARGETS\n"
+	if [[ ! -d "$D_TARGETS" ]]; then
+		echo "* missing remote targets directory!"
+		return 1
+	fi
+	
+	# Each file in 'D_TARGETS' is a mount target
+	local T_ALL="$(ls "$D_TARGETS")"
+
+	if [[ -z "$T_ALL" ]]; then
+		echo "* no remote targets defined!"
+		return 1
+	fi
+
+	# 'T' filename is used as mount path under D_MNT
+	# 'T' contents are the mount options
+	echo "> mounting remote(s)"
+	for T in $T_ALL; do
+		local T_OPTS="$(cat "$D_TARGETS/$T")"
+
+		mkdir -p "$D_MNT/$T" > /dev/null 2>&1
+
+		mountpoint "$D_MNT/$T" > /dev/null 2>&1
+		if (( ! $? )); then
+			echo "* $D_MNT/$T: ALREADY MOUNTED"
+		else
+			mount $T_OPTS "$D_MNT/$T" > /dev/null 2>&1
+		
+			if (( $? )); then
+				echo "* $D_MNT/$T: FAIL"
+			else
+				echo "* $D_MNT/$T: OK"
+			fi
+		fi
+	done
+	echo "done"
+
+	return 0
+}
+
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	remote_mount
+fi

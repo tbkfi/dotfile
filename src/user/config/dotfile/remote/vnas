@@ -1,0 +1,1 @@
+-t nfs -o _netdev,hard,tcp,rsize=1048576,wsize=1048576 vnas.lan.tbk.fi:/
