@@ -66,6 +66,7 @@ export GREP_OPTIONS="--color=auto"
 if command -v vim > /dev/null 2>&1; then alias vi="vim"; fi
 if command -v bat > /dev/null 2>&1; then alias cat="bat -pp"; fi
 if command -v eza > /dev/null 2>&1; then alias ls="eza --group-directories-first --icons"; fi
+if command -v 7zz > /dev/null 2>&1; then alias 7z="7zz"; fi
 alias ip="ip -c=auto"
 alias ssh="TERM=xterm-256color ssh"
 
