@@ -47,6 +47,13 @@ smart:
     gentoo: sys-apps/smartmontools
     arch: smartmontools
 
+nut:
+# UPS tools
+    debian: nut
+    fedora: nut
+    gentoo: sys-power/nut
+    arch: nut
+
 bluez:
 # Bluetooth functionality
     debian: bluez
