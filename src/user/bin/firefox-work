@@ -1,0 +1,57 @@
+#!/bin/bash
+
+PROGRAM_BIN="/usr/bin/firefox"
+PROFILE_PATH="$(xdg-user-dir DESKTOP)/profile/firefox"
+PROFILE_NAME="work"
+FF_OPTS="--profile $PROFILE_PATH/$PROFILE_NAME"
+
+
+send_msg() {
+	local MSG_TITLE="firefox"
+	local MSG_BODY="$1"
+
+	echo -e "$MSG_TITLE: $MSG_BODY"
+	if command -v notify-send > /dev/null 2>&1; then
+		notify-send "$MSG_TITLE" "$MSG_BODY"
+	fi
+}
+
+if [[ -x "$PROGRAM_BIN" ]]; then
+# Firefox behaves in an unorthodox manner, attempting to open given options
+# and arguments as URLs by default, if they're not an exact match for a CLI option or command.
+#
+# e.g.:
+# 'firefox asd1 asd2' -> opens firefox default profile with two tabs.
+# 'firefox --help'    -> prints proper help information.
+# 'firefox --helps'   -> opens default profile with an empty tab.
+#
+# This is stupid, but such is life. So be careful when invoking, specially if
+# profiles are meant to be separate for security / privacy.
+	
+	send_msg "run as profile \"$PROFILE_NAME\""
+
+	#echo "$PROFILE_PATH/$PROFILE_NAME"
+	#exit 0
+	
+	if [[ "$1" != "" ]]; then
+	# Try to invoke with custom arguments, and guard
+		if [[ "$1" != "DOIT" ]]; then
+			send_msg "first argument (\$1) must be 'DOIT', to run with arguments!"
+			exit 3
+		fi
+		
+		send_msg "run with arg \"${@:2}\""
+		"$PROGRAM_BIN" $FF_OPTS ${@:2}
+		exit
+	fi
+	
+	if [[ ! -d "$PROFILE_PATH/$PROFILE_NAME" ]]; then
+		send_msg "missing profile \"$PROFILE_PATH/$PROFILE_NAME\""
+		exit 2
+	fi
+	
+	"$PROGRAM_BIN" $FF_OPTS
+else
+	send_msg "missing binary \"$PROGRAM_BIN\", or not executable!"
+	exit 1
+fi
