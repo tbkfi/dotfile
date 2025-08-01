@@ -48,23 +48,23 @@ M  = MANUAL
 T  = TRIGGER
 
  $HOME
- ├─ .ssh       (SS)
- ├─ .gpg       (SS)
- ├─ .gitconfig (SS)
+ ├─ .ssh       (SS: IF -d /secrets/ssh/ )
+ ├─ .gpg       (SS: IF -d /secrets/gpg/ )
+ ├─ .gitconfig (SS: IF -d /secrets/gitconfig )
  │
  ├─ .config
- │  ├─ {program_dir_t} (S)
+ │  └─ {program_dir_t} (S: FOR -d /src/user/config/{D} )
  ├─ .local
  │  └─ share
- │     ├─ applications (S)
- │     ├─ custom       (S)
- │     └─ fonts        (S)
+ │     ├─ applications (S: /src/user/local/share/applications/ )
+ │     ├─ custom       (S: /src/user/local/share/custom/ )
+ │     └─ fonts        (S: /src/user/local/share/fonts/ )
  │
- ├─ bin (S)
+ ├─ bin (S: /src/user/bin/ )
  │  └─ {scripts_t}
  │
- ├─ dotfile (G)
- ├─ local   (M)
+ ├─ dotfile (G: git clone/pull )
+ ├─ local   (M: /src/user/bin/dot-refresh )
  │  ├─ desktop
  │  ├─ document
  │  ├─ download
@@ -74,9 +74,9 @@ T  = TRIGGER
  │  ├─ template
  │  └─ video
  │
- └─ remote (T)
-    ├─ {netdev_t}
-    └─ {usbdev_t}
+ └─ remote (T: /src/user/bin/mount-remote )
+    ├─ {netdev_}  (defined: /src/user/config/dotfile/remote/{T} )
+    └─ {usbdev_t} (defined: /src/user/config/dotfile/remote/{T} )
 ```
 
 ## Deployment
