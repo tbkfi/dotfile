@@ -74,8 +74,8 @@ T  = TRIGGER
  │  ├─ template
  │  └─ video
  │
- └─ remote (T: /src/user/bin/mount-remote )
-    ├─ {netdev_}  (defined: /src/user/config/dotfile/remote/{T} )
+ └─ remote (T: /src/user/bin/remote-mount )
+    ├─ {netdev_t} (defined: /src/user/config/dotfile/remote/{T} )
     └─ {usbdev_t} (defined: /src/user/config/dotfile/remote/{T} )
 ```
 
