@@ -8,26 +8,6 @@ Base system profile is `no-multilib/hardened/systemd`, and `-X` is enabled
 globally. Other packages are tracked in `/src/pkg` directory, and include matches for Debian, Fedora, and
 Arch in addition to Gentoo.
 
-Below is the expected `$HOME` structure for the working user...
-
-```
- $HOME
- ├─ .config
- ├─ .local
- ├─ dotfile <- sticky!
- ├─ local
- │  ├─ desktop
- │  ├─ document
- │  ├─ download
- │  ├─ music
- │  ├─ picture
- │  ├─ public
- │  ├─ template
- │  └─ video
- └─ remote
-    └─ {_netdev}
-```
-
 ## Features
 
 Lean 64-bit only Linux desktop on Sway. One-step deployment of desired user
@@ -40,6 +20,64 @@ if needed.
 
 Crossdev support for tooling and workflow is still WIP, with a focus on ARM and
 C/C++.
+
+## Usage
+
+Currently the general system configurations are copied over only during initial OS install.
+
+Portage settings are updated by running the `portage-refresh` script with sufficient privileges.
+
+User configurations are updated by running the `dot-refresh` script as the user.
+
+Updating via any of the refresh script is destructive, and will DELETE existing data at target link paths.
+This is by-design, and allows quick updates and reversals to known working configurations reliably,
+while clearing leftover data.
+
+Directories and targets marked `SS` below are conditionally linked if the
+secrets submodule exists and has the targets present, otherwise they are
+skipped. The submodules are out-of-scope here, but I'll just say that using keystubs
+is recommended for security.
+
+Below is the expected `$HOME` structure for the working user...
+
+```
+G  = GITREPO
+S  = SYMBOLIC LINK
+SS = SYMBOLIC LINK (SECRETS SUBMODULE)
+M  = MANUAL
+T  = TRIGGER
+
+ $HOME
+ ├─ .ssh       (SS)
+ ├─ .gpg       (SS)
+ ├─ .gitconfig (SS)
+ │
+ ├─ .config
+ │  ├─ {program_dir_t} (S)
+ ├─ .local
+ │  └─ share
+ │     ├─ applications (S)
+ │     ├─ custom       (S)
+ │     └─ fonts        (S)
+ │
+ ├─ bin (S)
+ │  └─ {scripts_t}
+ │
+ ├─ dotfile (G)
+ ├─ local   (M)
+ │  ├─ desktop
+ │  ├─ document
+ │  ├─ download
+ │  ├─ music
+ │  ├─ picture
+ │  ├─ public
+ │  ├─ template
+ │  └─ video
+ │
+ └─ remote (T)
+    ├─ {netdev_t}
+    └─ {usbdev_t}
+```
 
 ## Deployment
 
