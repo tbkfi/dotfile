@@ -24,6 +24,8 @@ C/C++.
 ## Usage
 
 Currently the general system configurations are copied over only during initial OS install.
+The `/src/machine/` directory contains machine-specific configurations that
+should only be applied for a specific hadware configuration.
 
 Portage settings are updated by running the `portage-refresh` script with sufficient privileges.
 
