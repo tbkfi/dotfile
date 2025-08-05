@@ -29,7 +29,7 @@ vim.api.nvim_create_autocmd("FileType", {
 
 -- TAB-4
 vim.api.nvim_create_autocmd("FileType", {
-	pattern = { "python", "html", "css", "json", "yaml", "toml" },
+	pattern = { "python", "html", "css", "scss", "json", "yaml", "toml" },
 	callback = function()
 		vim.bo.tabstop = 4
 		vim.bo.shiftwidth = 4
