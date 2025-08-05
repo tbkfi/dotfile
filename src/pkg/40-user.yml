@@ -194,3 +194,10 @@ hugo:
     fedora: hugo
     gentoo: www-apps/hugo
     arch: hugo
+
+sc-im:
+# Spreadsheet in Ncurses
+    debian: sc-im
+    #fedora: 
+    gentoo: app-office/sc-im
+    #arch: 
