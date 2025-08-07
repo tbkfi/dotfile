@@ -3,7 +3,7 @@ vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.scrolloff = 999
 
-vim.opt.textwidth = 90
+--vim.opt.textwidth = 90
 vim.opt.colorcolumn = "91"
 
 vim.opt.clipboard:append("unnamedplus")
