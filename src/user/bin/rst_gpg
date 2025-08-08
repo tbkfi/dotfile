@@ -1,0 +1,12 @@
+#!/bin/bash
+
+rst_gpg_agent() {
+# Reset the GPG agent. Helps if the agent is dead, stuck, or whatever.
+# It's required for various things, including SSH/Yubikey auth.
+	gpgconf --kill gpg-agent
+	gpgconf --launch gpg-agent
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	rst_gpg_agent
+fi
