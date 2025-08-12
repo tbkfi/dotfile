@@ -19,6 +19,13 @@ dmidecode:
     gentoo: sys-apps/dmidecode
     arch: dmidecode
 
+lm-sensors:
+# Hardware monitoring tools
+    debian: lm-sensors
+    fedora: lm_sensors
+    gentoo: sys-apps/lm-sensors
+    arch: lm_sensors
+
 parted:
 # Filesystem and partitioning tool
     debian: parted
