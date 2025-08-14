@@ -24,6 +24,8 @@ net-libs/gnutls pkcs11 tools # by: libvirt
 
 media-gfx/imagemagick fontconfig heif jpeg jpegxl lcms lzma opencl openmp raw svg tiff truetype webp xml zip # want
 
+app-admin/testdisk ntfs # want
+
 
 # @dot-desktop
 media-video/ffmpeg dav1d drm blueray cdio chromaprint chromium codec2 dvd gme jpegxl lame lcms libaom libplacebo opencl opengl openh264 opus rubberband shaderc svg svt-av1 vorbis vpx webp x264 x265 zimg # want
