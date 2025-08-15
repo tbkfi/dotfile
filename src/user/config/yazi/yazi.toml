@@ -79,11 +79,11 @@ rules = [
 ]
 
 [tasks]
-micro_workers    = 10
-macro_workers    = 10
+micro_workers    = 16
+macro_workers    = 16
 bizarre_retry    = 3
-image_alloc      = 536870912  # 512MB
-image_bound      = [ 16000, 16000 ]
+image_alloc      = 0
+image_bound      = [ 24000, 24000 ]
 suppress_preload = false
 
 [plugin]
@@ -148,6 +148,9 @@ previewers = [
 	{ mime = "inode/empty", run = "empty" },
 	# Fallback
 	{ name = "*", run = "file" },
+]
+prepend_previewers = [
+	{ mime = "image/tiff", run = "magick" },
 ]
 
 [input]
