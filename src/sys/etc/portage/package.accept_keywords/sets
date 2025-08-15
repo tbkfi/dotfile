@@ -15,3 +15,5 @@ net-misc/moonlight ~amd64 # no-stable
 =media-libs/gegl-9999 ** # by: media-gfx/gimp-9999
 
 app-misc/yazi ~amd64 # no-stable, guru
+
+media-gfx/swayimg ~amd64 # guru
