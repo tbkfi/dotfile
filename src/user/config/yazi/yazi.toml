@@ -149,6 +149,9 @@ previewers = [
 	# Fallback
 	{ name = "*", run = "file" },
 ]
+prepend_preloaders = [
+	{ mime = "image/tiff", run = "magick" },
+]
 prepend_previewers = [
 	{ mime = "image/tiff", run = "magick" },
 ]
