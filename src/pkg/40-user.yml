@@ -41,6 +41,13 @@ fuse3:
     gentoo: sys-fs/fuse
     arch: fuse3
 
+android-file-transfer-linux:
+# MTP client for android filesystem access
+    debian: android-file-transfer
+    fedora: android-file-transfer
+    gentoo: sys-fs/android-file-transfer-linux
+    arch: android-file-transfer
+
 texlive:
 # TeX distribution
     debian: texlive-full

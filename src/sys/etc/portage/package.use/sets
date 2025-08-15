@@ -71,3 +71,5 @@ net-analyzer/wireshark maxminddb sdjournal smi wifi http2 http3 opus # want
 dev-qt/qtmultimedia vaapi opengl # by: net-analyzer/wireshark (gui)
 
 media-gfx/swayimg avif exif exr gif heif jpeg jpegxl png raw sixel svg tiff webp # want
+
+sys-fs/android-file-transfer-linux gui # want
