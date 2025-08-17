@@ -19,6 +19,7 @@
 	],
 	"modules-right": [
 		//"sway/window"
+		"idle_inhibitor",
 		"sway/mode",
 		"sway/workspaces",
 		"network"
@@ -78,6 +79,13 @@
 	},
 
 	// RIGHT-MODULE
+	"idle_inhibitor": {
+		"format": "COFFEE: [{icon}]",
+		"format-icons": {
+			"activated": "ON",
+			"deactivated": "OFF"
+		}
+	},
 	"sway/workspaces": {
 		"disable-scroll": true,
 		"format": "[{name}{icon}]",

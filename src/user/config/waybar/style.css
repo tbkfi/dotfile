@@ -94,7 +94,7 @@ window#waybar {
 
 #battery, #memory, #disk, #cpu, #temperature,
 #pulseaudio, #clock, #backlight, 
-#mode, #workspaces, #network {
+#idle_inhibitor, #mode, #workspaces, #network {
 	background: @clr-black-half;
 	color: @clr-white;
 	padding: 0;
