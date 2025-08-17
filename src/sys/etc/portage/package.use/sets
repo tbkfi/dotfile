@@ -73,3 +73,7 @@ dev-qt/qtmultimedia vaapi opengl # by: net-analyzer/wireshark (gui)
 media-gfx/swayimg avif exif exr gif heif jpeg jpegxl png raw sixel svg tiff webp # want
 
 sys-fs/android-file-transfer-linux gui # want
+
+media-gfx/inkscape svg2 exif imagemagick jpeg openmp # want
+dev-python/pillow tiff webp # by: media-gfx/imagemagick
+media-libs/tiff jpeg # by: media-gfx/imagemagick

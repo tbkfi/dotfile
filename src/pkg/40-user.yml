@@ -181,6 +181,13 @@ gimp:
     gentoo: media-gfx/gimp
     arch: gimp
 
+inkscape:
+# Vector-drawing program
+    debian: inkscape
+    fedora: inkscape
+    gentoo: media-gfx/inkscape
+    arch: inkscape
+
 openexr:
 # High dynamic range image tools
     debian:
