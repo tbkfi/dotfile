@@ -33,8 +33,8 @@
 			"critical": 15
 		},
 		"format": "{icon}  {capacity}% | {power:0.2f} W | {time} | h:{health}, c:{cycles}",
-		"format-charging": "  {capacity}% | {power:0.2f} W | {time} | h:{health}, c:{cycles}",
-		"format-plugged": "  {capacity}% | {power:0.2f} W | h:{health}, c:{cycles}",
+		"format-charging": "⚡ {capacity}% | {power:0.2f} W | {time} | h:{health}, c:{cycles}",
+		"format-plugged": "🔌 {capacity}% | {power:0.2f} W | h:{health}, c:{cycles}",
 		"format-icons": ["", "", "", "", ""]
 	},
 	"memory": {
@@ -80,7 +80,7 @@
 
 	// RIGHT-MODULE
 	"idle_inhibitor": {
-		"format": "COFFEE: [{icon}]",
+		"format": "☕ [{icon}]",
 		"format-icons": {
 			"activated": "ON",
 			"deactivated": "OFF"
