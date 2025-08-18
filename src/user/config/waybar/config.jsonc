@@ -97,8 +97,8 @@
 	},
 	"network": {
 		"interval": 10,
-		"format-ethernet": "ETH  {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
-		"format-wifi": "WIFI '{essid}' @ {signaldBm}dBm | {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
-		"format-disconnected": "⚠ LINK DOWN ⚠"
+		"format-ethernet": "🌐 {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
+		"format-wifi": "🌐 '{essid}' @ {signaldBm}dBm | {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
+		"format-disconnected": "⚠️ LINK DOWN ⚠️"
 	}
 }
