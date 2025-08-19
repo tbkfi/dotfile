@@ -1,0 +1,54 @@
+#!/bin/bash
+# Toolchain triplet: arm-none-eabi
+# * arch:   arm
+# * vendor: generic
+# * os:     bare-metal
+# * ABI:    Embedded ABI
+
+print_help() {
+	echo "No argument (\$1) given! Choose one"
+	echo " * install  - to install toolchain"
+	echo " * remove   - to remove toolchain install"
+}
+
+toolchain_install() {
+# Build the target toolchain
+	local CROSSDEV_PATH="/usr/arm-none-eabi"
+	local CROSSDEV_MAKE="$CROSSDEV_PATH/etc/portage/make.conf"
+
+	# Custom params
+	export MAKEOPTS="-j$(nproc)"
+
+	# Mandate separate 'crossdev' repository
+	eselect repository list -i | grep -q "crossdev"
+	if (( $? )); then
+		echo "Couldn't detect 'crossdev' as installed repository! Exiting ..."
+		exit 1
+	fi
+
+	# Build toolchain
+	sudo crossdev --stage4 --target arm-none-eabi
+}
+
+toolchain_remove() {
+# Uninstall the entire target toolchain (clean start)
+	sudo crossdev --clean --target arm-none-eabi
+}
+
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+
+	# Choose what to do
+	if [[ -z "$1" ]]; then
+		print_help
+		exit 1
+	else
+		local ARG="$1"
+
+		if [[ "$ARG" = "install" ]]; then
+			toolchain_install
+		elif [[ "$ARG" = "remove" ]]; then
+			toolchain_remove
+		fi
+	fi
+}

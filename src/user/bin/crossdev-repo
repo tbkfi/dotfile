@@ -1,0 +1,54 @@
+#!/bin/bash
+
+print_help() {
+	echo "No argument (\$1) given or recognised! Choose one"
+	echo " * install  - to install 'crossdev' repository"
+	echo " * remove   - to remove 'crossdev' repository"
+}
+
+crossdev_install() {
+# Create and configure 'crossdev' repository
+
+	# Create separate repo for 'crossdev'
+	sudo eselect repository create crossdev
+	if (( $? )); then
+		echo "Couldn't create repository! Exiting ..."
+		exit 1
+	fi
+
+	# Repo params
+	sudo echo "priority = 10" >> /etc/portage/repos.conf/eselect-repo.conf
+	sudo echo "masters = gentoo" >> /etc/portage/repos.conf/eselect-repo.conf
+	sudo echo "auto-sync = no" >> /etc/portage/repos.conf/eselect-repo.conf
+
+	# Does it look good?
+	echo -e "* VERIFY THAT ENTRY LOOKS GOOD !!!\n"
+	echo "=================================="
+	tail -n6 /etc/portage/repos.conf/eselect-repo.conf
+	echo "=================================="
+}
+
+crossdev_remove() {
+# Remove the 'crossdev' repository
+	sudo eselect repository remove -f crossdev
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+
+	# Choose what to do
+	if [[ -z "$1" ]]; then
+		print_help
+		exit 1
+	else
+		local ARG="$1"
+
+		if [[ "$ARG" = "install" ]]; then
+			crossdev_install
+		elif [[ "$ARG" = "remove" ]]; then
+			crossdev_remove
+		else
+			print_help
+			exit 1
+		fi
+	fi
+fi
