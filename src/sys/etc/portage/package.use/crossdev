@@ -1,0 +1,2 @@
+ # Crossdev use flags only!
+ cross-arm-none-eabi/gcc cxx
