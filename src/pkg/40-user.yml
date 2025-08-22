@@ -215,3 +215,10 @@ sc-im:
     #fedora: 
     gentoo: app-office/sc-im
     #arch: 
+
+aria2:
+# Download utility
+    debian: aria2
+    fedora: aria2
+    gentoo: net-misc/aria2
+    arch: aria2
