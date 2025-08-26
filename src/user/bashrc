@@ -35,21 +35,18 @@ git_branch() {
 
 umask 077
 
-export PATH_DOTFILE="$HOME/dotfile"
-export XDG_CONFIG_HOME="$HOME/.config"
-export XDG_DATA_HOME="$HOME/.local"
-export XDG_CACHE_HOME="$HOME/.cache"
-
 export GPG_TTY="$(tty)"
 export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
 
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
-# PATH & PS1
-# note: 1. LOCAL (~/bin), 2. SYSTEM-LOCAL (/usr/local), 3. SYSTEM (/usr/)
-export PATH="$HOME/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin"
 export PS1="(\[\e[38;5;208m\]\l\[\e[0m\]|\[\e[38;5;22m\]\!\[\e[0m\]) \[\e[38;5;221m\]\u@\h\[\e[0m\] \$(git_branch)\[\e[38;5;147m\]\w\[\e[0m\]\n\[\e[38;5;206m\]\$\[\e[0m\] " # goddamn, don't ask. never again.
+
+export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin"
+if [[ -d "$HOME/bin" ]]; then
+	export PATH="$HOME/bin:$PATH"
+fi
 
 export HISTSIZE=10000
 export HISTFILESIZE=10000
@@ -63,12 +60,17 @@ export BROWSER="firefox"
 
 export GREP_OPTIONS="--color=auto"
 
+# CLI
 if command -v vim > /dev/null 2>&1; then alias vi="vim"; fi
 if command -v bat > /dev/null 2>&1; then alias cat="bat -pp"; fi
 if command -v eza > /dev/null 2>&1; then alias ls="eza --group-directories-first --icons"; fi
 if command -v 7zz > /dev/null 2>&1; then alias 7z="7zz"; fi
-alias ip="ip -c=auto"
-alias ssh="TERM=xterm-256color ssh"
+if command -v ip > /dev/null 2>&1; then alias ip="ip -c=auto"; fi
+if command -v ssh > /dev/null 2>&1; then alias ssh="TERM=xterm-256color ssh"; fi
+
+# Compilers
+if command -v gcc > /dev/null 2>&1; then alias gcc="gcc -O2 -Wall -std=c23"; fi
+if command -v g++ > /dev/null 2>&1; then alias g++="g++ -O2 -Wall -std=c++20"; fi
 
 # Safeties (don't remove future me, even if annoyed!)
 rm() { command rm -i "${@}"; }
