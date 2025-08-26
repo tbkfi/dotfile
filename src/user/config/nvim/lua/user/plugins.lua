@@ -1,4 +1,9 @@
--- package manager bootstrap
+-- TBK DOTFILE
+-- nvim/lua/user/plugins.lua
+-- 
+
+-- BOOTSTRAP PLUGIN MANAGER
+-- see: https://lazy.folke.io/installation 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
 	local lazyrepo = "https://github.com/folke/lazy.nvim.git"
@@ -15,13 +20,14 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- plugins
+-- SETUP PLUGINS
+-- see: https://lazy.folke.io/spec
 require("lazy").setup({
 	spec = {
 		{ -- Treesitter (Parsing & Syntax)
 			"nvim-treesitter/nvim-treesitter", build = ":TSUpdate"
 		},
-		{ -- LSP & Mason (Language support)
+		{ -- LSP (& Mason (Modular Language support))
 			"neovim/nvim-lspconfig",
 			dependencies = {
 				"williamboman/mason.nvim",
@@ -53,15 +59,6 @@ require("lazy").setup({
 		{
 			"lervag/vimtex"
 		},
-		{
-			"iamcco/markdown-preview.nvim",
-			cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
-			build = "cd app && yarn install",
-			init = function()
-				vim.g.mkdp_filetypes = { "markdown" }
-			end,
-			ft = { "markdown" },
-		},
 	},
 	install = {
 		colorscheme = { "kanagawa-wave" }
@@ -69,4 +66,5 @@ require("lazy").setup({
 	checker = { enabled = true },
 })
 
+-- Set theme
 vim.cmd("colorscheme kanagawa-wave")
