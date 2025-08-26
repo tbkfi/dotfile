@@ -1,2 +1,4 @@
- # Crossdev use flags only!
- cross-arm-none-eabi/gcc cxx
+# Crossdev use flags only!
+cross-arm-none-eabi/gcc cxx # want
+
+dev-debug/gdb multitarget xml server source-highlight # want
