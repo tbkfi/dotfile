@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Firefox (Main Profile)
+Comment=Firefox using 'main' profile
+Exec=/bin/bash -c "firefox --profile "$HOME"/local/desktop/profile/firefox/main"
+Icon=firefox
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
