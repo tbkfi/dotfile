@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Thunderbird (Main Profile)
+Comment=Thunderbird using 'main' profile
+Exec=/bin/bash -c "thunderbird --profile "$HOME"/local/desktop/profile/thunderbird/main"
+Icon=thunderbird
+Terminal=false
+Type=Application
+Categories=Network;Email;
+MimeType=x-scheme-handler/mailto;
