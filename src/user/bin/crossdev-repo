@@ -34,13 +34,11 @@ crossdev_remove() {
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-
-	# Choose what to do
 	if [[ -z "$1" ]]; then
 		print_help
 		exit 1
 	else
-		local ARG="$1"
+		ARG="$1"
 
 		if [[ "$ARG" = "install" ]]; then
 			crossdev_install
