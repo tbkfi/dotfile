@@ -19,16 +19,6 @@ require('mason-lspconfig').setup {
 		"lua_ls",
 	}
 }
-lspconfig.clangd.setup({
-	on_attach = on_attach,
-	cmd = { vim.fn.expand('~') .. "/.local/share/nvim/mason/bin/clangd" }, -- use Mason clangd
-})
-lspconfig.pylsp.setup({
-	on_attach = on_attach,
-})
-lspconfig.lua_ls.setup({
-	on_attach = on_attach,
-})
 
 
 local diagnostics_visible = true
