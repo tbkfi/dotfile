@@ -17,3 +17,5 @@ net-misc/moonlight ~amd64 # no-stable
 app-misc/yazi ~amd64 # no-stable, guru
 
 media-gfx/swayimg ~amd64 # guru
+
+app-editors/neovim ~amd64 # want
