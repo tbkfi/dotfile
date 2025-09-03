@@ -1,0 +1,26 @@
+CompileFlags:
+    Add: [
+        -Wall,
+        -Wextra,
+        -Wpedantic,
+        -I/usr/include, # Need this for C, 'cause of LSP issues
+    ]
+
+# Headers
+if:
+    PathMatch: .*\.h
+CompileFlags:
+    Add: [-std=c++20]
+
+# C
+If:
+    PathMatch: .*\.c
+CompileFlags:
+    Add: [-std=c23]
+
+# C++
+If:
+    PathMatch: .*\.cpp
+CompileFlags:
+    Add: [-std=c++20]
+
