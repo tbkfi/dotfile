@@ -18,8 +18,12 @@ easy and consistent, preventing loss of important workflow details that are made
 as time passes. Modular structure makes extending the scope easy and consistent,
 if needed.
 
-Crossdev support for tooling and workflow is still WIP, with a focus on ARM and
-C/C++.
+Crossdev support for tooling and workflow is done via the user scripts at `/src/user/bin` and the two
+other repositories on my git (`embedded-mpy` and `embedded-c`). The user scripts install a separate
+crossdev repo on Gentoo, and build the target toolchains.
+
+The `embedded-{mpy,c}` repositories contain plain environments for micropython and C/C++ environments,
+and three small scripts for setup (environment, tools), building (firmware, project), and flashing (src, libs/includes).
 
 ## Usage
 
