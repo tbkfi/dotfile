@@ -1,10 +1,16 @@
-require("user.settings") -- General settings
+-- General settings
+require("user.mappings")
+require("user.settings")
 
-require("user.plugins")             -- Plugins (Manager)
+-- Plugins
+require("user.plugin")  -- Manager
+
 require("plugin.treesitter")        -- Syntax Highlighting
-require("plugin.lsp")               -- Language Server Protocol
 require("plugin.cmp")               -- Autocompletion
-require("plugin.vimtex")            -- Latex Tools
-require("plugin.markdown-preview")  -- Markdown Preview
+require("plugin.lsp")               -- Language Server Protocol
+--require("plugin.indent-blankline")  -- Visualise indentation and scope
+--require("plugin.vimtex")            -- Latex Tools
+--require("plugin.markdown-preview")  -- Markdown Preview
 
-require("user.mappings") -- Keymappings
+-- Language Servers
+--vim.lsp.enable("luals")

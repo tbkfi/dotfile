@@ -1,8 +1,3 @@
--- TBK DOTFILE
--- nvim/lua/user/settings.lua
--- 
-
-
 -- BASIC OPTIONS
 -- see: https://neovim.io/doc/user/options.html#_3.-options-summary
 vim.opt.clipboard:append("unnamedplus")
@@ -23,17 +18,6 @@ vim.opt.incsearch = true
 
 vim.opt.splitbelow = true
 vim.opt.splitright = true
-
-
--- DIAGNOSTIC OPTIONS
--- see: https://neovim.io/doc/user/diagnostic.html#vim.diagnostic.Opts
-vim.diagnostic.config({
-	signs = true,
-	virtual_lines = {
-		current_line = true,
-	},
-})
-
 
 -- CUSTOM SHENANIGANS
 -- see: https://neovim.io/doc/user/api.html#nvim_create_autocmd()
