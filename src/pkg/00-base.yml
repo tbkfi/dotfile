@@ -2,7 +2,7 @@ kernel:
 # Linux kernel
     debian: linux
     fedora: kernel
-    gentoo: sys-kernel/gentoo-kernel sys-kernel/linux-firmware
+    gentoo: sys-kernel/gentoo-kernel sys-kernel/linux-firmware sys-kernel/vanilla-sources
     arch: linux-hardened
 
 systemd:

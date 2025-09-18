@@ -19,3 +19,6 @@ app-misc/yazi ~amd64 # no-stable, guru
 media-gfx/swayimg ~amd64 # guru
 
 app-editors/neovim ~amd64 # want
+
+# CUSTOM
+sys-kernel/vanilla-sources ~amd64 # Kernel testing
