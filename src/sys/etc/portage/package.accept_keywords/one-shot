@@ -1,0 +1,9 @@
+# Use this file for one-shot unmasks and other dev/testing environments.
+
+# KERNEL TESTING
+sys-kernel/vanilla-sources ~amd64
+
+# ROCM
+dev-util/rocm-smi ~amd64
+dev-util/rocm-info ~amd64
+
