@@ -4,6 +4,26 @@
 sys-kernel/vanilla-sources ~amd64
 
 # ROCM
+# note: 'equery uses rocBLAS', to see target gfx architectures.
+dev-util/Tensile ~amd64
 dev-util/rocm-smi ~amd64
-dev-util/rocm-info ~amd64
-
+dev-util/rocminfo ~amd64
+dev-util/hip ~amd64
+dev-util/hipcc ~amd64
+dev-util/roctracer ~amd64
+dev-build/rocm-cmake ~amd64
+sci-libs/rocBLAS ~amd64
+sci-libs/rocFFT ~amd64
+sci-libs/hipBLAS ~amd64
+sci-libs/rocRAND ~amd64
+sci-libs/rocSOLVER ~amd64
+sci-libs/hipBLAS-common ~amd64
+sci-libs/rocSPARSE ~amd64
+sci-libs/rocPRIM ~amd64
+sci-libs/miopen ~amd64
+dev-libs/half ~amd64
+dev-libs/rocm-device-libs ~amd64
+dev-libs/rocm-comgr ~amd64
+dev-libs/rocr-runtime ~amd64
+dev-libs/roct-thunk-interface ~amd64
+dev-python/cppheaderparser ~amd64

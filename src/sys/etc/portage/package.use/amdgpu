@@ -1,0 +1,7 @@
+# This file is used to configure AMDGPU specific build targets,
+# it's mostly relevant for bigger package sets like ROCm.
+# 
+# Disable all targets, then enable as needed.
+# * gfx1103 for 780M (RDNA3)
+# * gfx1100 for 7XXX (RDNA3), note: fallback for gfx1103, slightly different ISA!
+*/* AMDGPU_TARGETS: -* gfx1100 gfx1103
