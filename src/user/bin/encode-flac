@@ -1,0 +1,99 @@
+#!/bin/bash
+
+encode_track_to_flac() {
+	T_START=$(date +%s)
+	
+	# Error codes
+	RC_ERR_SOURCE=1
+	RC_ERR_OUTPUT=2
+	RC_ERR_ENCODE=3
+	
+	# Arguments
+	SRC="$1";
+	DST="$2";
+	
+	echo -n "[EncodeFlac]: "
+	
+	# SRC: was given?
+	if [[ -z "$SRC" ]]; then
+		echo "NO SOURCE PROVIDED!"
+		return $RC_ERR_SOURCE;
+	fi
+	
+	# SRC: exists?
+	if ! stat "$SRC" &>/dev/null; then
+		echo "DOESN'T EXIST!"
+		return $RC_ERR_SOURCE
+	fi
+	
+	# SRC: read access?
+	if ! [[ -r "$SRC" ]]; then
+		echo "NOT READABLE!"
+		return $RC_ERR_SOURCE
+	fi
+
+	echo "'$SRC'"
+	TRACK_NAME="$(basename "$SRC")"
+	TRACK_PATH="$(dirname "$(readlink -f "$SRC")")"
+	
+	# Custom Destination (optional)
+	if [[ -n "$DST" ]]; then
+		DST="$(realpath "$DST")"
+		mkdir -p "$DST"
+		
+		[[ -d "$DST" && -w "$DST" ]] || return $RC_ERR_OUTPUT
+		FLAC="$DST/${TRACK_NAME%.*}.flac"
+	else
+		FLAC="$TRACK_PATH/${TRACK_NAME%.*}_ENCODE.flac"
+	fi
+	echo " -> DST: '$FLAC'"
+	echo -n " -> STATUS: "
+	
+	# Abort if FLAC exists
+	if stat "$FLAC" &> /dev/null ; then
+		echo -e "ENCODE EXISTS\n"
+		return $RC_ERR_OUTPUT
+	fi
+	
+	# Detect original sample format
+	# see: https://ffmpeg.org/doxygen/7.0/group__lavu__sampfmts.html
+	SAMPLE_FMT=$(ffprobe -v error -select_streams a:0 \
+		-show_entries stream=sample_fmt \
+		-of default=nokey=1:noprint_wrappers=1 "$SRC")
+	
+	PCM_FMT=""
+	case "$SAMPLE_FMT" in
+		s16) PCM_FMT=pcm_s16le ;;
+		s24) PCM_FMT=pcm_s24le ;;
+		s32) PCM_FMT=pcm_s32le ;;
+		flt|fltp) PCM_FMT=pcm_s24le ;; # float-packed, float-planar
+		dbl|dblp) PCM_FMT=pcm_s32le ;; # double-packed, double-planar
+		*) PCM_FMT=pcm_s16le ;;
+	esac
+	
+	# SRC -> PCM -> FLAC
+	ffmpeg -loglevel -8 -n -i "$SRC" \
+		-af 'aformat=channel_layouts=mono|stereo|5.1|6.1|7.1' \
+		-c:a "$PCM_FMT" -f wav - \
+	| flac --best --blocksize=4096 --verify -o "$FLAC" - &>/dev/null
+	ENC_RC=$?
+	
+	T_ELAPSED=$(( $(date +%s) - $T_START ))
+	
+	if (( $ENC_RC )); then
+		echo -e "FAIL ($T_ELAPSED seconds)\n"
+		return $RC_ERR_ENCODE
+	else
+		echo -e "OK ($T_ELAPSED seconds)\n"
+	fi
+	
+	# Padding, Seektable
+	metaflac --remove-all --dont-use-padding "$FLAC"
+	metaflac --add-seekpoint=2s "$FLAC"
+	metaflac --merge-padding "$FLAC"
+	metaflac --sort-padding "$FLAC"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	encode_track_to_flac "$1" "$2"
+fi
