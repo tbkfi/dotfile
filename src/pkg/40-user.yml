@@ -222,3 +222,12 @@ aria2:
     fedora: aria2
     gentoo: net-misc/aria2
     arch: aria2
+
+#kicad:
+# Electronics design and automation
+# note: not Wayland compatible, only in vdesk for now
+# cope by devs: https://www.kicad.org/blog/2025/06/KiCad-and-Wayland-Support/
+    #debian: kicad
+    #fedora: kicad
+    #gentoo: sci-electronics/kicad
+    #arch: kicad
