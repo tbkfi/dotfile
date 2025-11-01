@@ -3,6 +3,10 @@ walls/*
 .env
 lazy-lock.json
 
+# User bin fakeroot
+src/user/bin/fakeroot/*
+!src/user/bin/fakeroot/
+!src/user/bin/fakeroot/.gitkeep
 
 # Wine-related
 src/user/local/share/applications/wine/

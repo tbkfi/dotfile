@@ -231,3 +231,11 @@ aria2:
     #fedora: kicad
     #gentoo: sci-electronics/kicad
     #arch: kicad
+
+gtk4:
+# Required for some manually built and installed programs.
+# Include other adjacent libs here as well.
+    debian: gtk4 libadwaita-1-0
+    fedora: gtk4 libadwaita
+    gentoo: gui-libs/gtk gui-libs/libadwaita
+    arch: gtk4 libadwaita
