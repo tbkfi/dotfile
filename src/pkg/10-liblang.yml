@@ -135,10 +135,10 @@ go:
 rust:
 # Language
 # note: some distributions include cargo,fmt,... in base "rust" package.
-    debian: rustc cargo rustfmt
-    fedora: rust cargo
-    gentoo: dev-lang/rust
-    arch: rust
+    debian: rustc cargo rustfmt just
+    fedora: rust cargo just
+    gentoo: dev-lang/rust dev-build/just
+    arch: rust just
 
 javascript:
 # Language
