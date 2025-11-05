@@ -17,6 +17,32 @@ fi
 
 # Put your fun stuff here.
 
+# PATH
+# 1. LOCAL        (~/bin))
+# 2. SYSTEM-LOCAL (/usr/local)
+# 3. SYSTEM       (/usr/)
+export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin"
+if [[ -d "$HOME/bin" ]]; then
+	export PATH="$HOME/bin:$PATH"
+fi
+
+# XDG
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+
+# XCURSOR
+# note: This is for fallback, primary definition in sway config.
+# path: ~/.local/share/icons/<theme_name>
+#export XCURSOR_PATH="${XDG_DATA_HOME}/icons"
+#export XCURSOR_THEME="Bibata-Modern-Ice"
+#export XCURSOR_SIZE=24
+
+# Dotfile
+export PATH_DOTFILE="$HOME/dotfile"
+
+# Git status
 git_branch() {
 # Yoink: https://wiki.gentoo.org/wiki/Bash#Environment_variables
 	branch="$(git branch 2>/dev/null | grep '^*' | colrm 1 2)"
@@ -43,11 +69,6 @@ export LC_ALL="en_US.UTF-8"
 
 export PS1="(\[\e[38;5;208m\]\l\[\e[0m\]|\[\e[38;5;22m\]\!\[\e[0m\]) \[\e[38;5;221m\]\u@\h\[\e[0m\] \$(git_branch)\[\e[38;5;147m\]\w\[\e[0m\]\n\[\e[38;5;206m\]\$\[\e[0m\] " # goddamn, don't ask. never again.
 
-export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin"
-if [[ -d "$HOME/bin" ]]; then
-	export PATH="$HOME/bin:$PATH"
-fi
-
 export HISTSIZE=10000
 export HISTFILESIZE=10000
 shopt -s histappend
@@ -67,6 +88,11 @@ if command -v eza > /dev/null 2>&1; then alias ls="eza --group-directories-first
 if command -v 7zz > /dev/null 2>&1; then alias 7z="7zz"; fi
 if command -v ip > /dev/null 2>&1; then alias ip="ip -c=auto"; fi
 if command -v ssh > /dev/null 2>&1; then alias ssh="TERM=xterm-256color ssh"; fi
+
+if command -v yt-dlp > /dev/null 2>&1; then
+	YTDLP_CONFIG="$XDG_CONFIG_HOME/yt-dlp/config"
+	if [ -r "$YTDLP_CONFIG" ]; then alias ytd="yt-dlp --config-location "$YTDLP_CONFIG""; fi
+fi
 
 # Compilers
 if command -v gcc > /dev/null 2>&1; then alias gcc="gcc -O2 -Wall -std=c23"; fi

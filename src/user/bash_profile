@@ -5,28 +5,3 @@
 if [[ -f "$HOME/.bashrc" ]] ; then
 	. "$HOME/.bashrc"
 fi
-
-# PATH
-# 1. LOCAL        (~/bin))
-# 2. SYSTEM-LOCAL (/usr/local)
-# 3. SYSTEM       (/usr/)
-export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin"
-if [[ -d "$HOME/bin" ]]; then
-	export PATH="$HOME/bin:$PATH"
-fi
-
-# XDG
-export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-
-# XCURSOR
-# note: This is for fallback, primary definition in sway config.
-# path: ~/.local/share/icons/<theme_name>
-#export XCURSOR_PATH="${XDG_DATA_HOME}/icons"
-#export XCURSOR_THEME="Bibata-Modern-Ice"
-#export XCURSOR_SIZE=24
-
-# Dotfile
-export PATH_DOTFILE="$HOME/dotfile"

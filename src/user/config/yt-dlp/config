@@ -1,0 +1,46 @@
+--format "( \
+	bestvideo[vcodec^=av01][height>=4320][fps>30]/      \
+	bestvideo[vcodec^=vp09.02][height>=4320][fps>30]/   \
+	bestvideo[vcodec^=vp09.00][height>=4320][fps>30]/   \
+	bestvideo[vcodec^=vp9][height>=4320][fps>30]/       \
+	bestvideo[vcodec^=avc1][height>=4320][fps>30]/      \
+	bestvideo[height>=4320][fps>30]/                    \
+	bestvideo[vcodec^=av01][height>=2880][fps>30]/      \
+	bestvideo[vcodec^=vp09.02][height>=2880][fps>30]/   \
+	bestvideo[vcodec^=vp09.00][height>=2880][fps>30]/   \
+	bestvideo[vcodec^=vp9][height>=2880][fps>30]/       \
+	bestvideo[vcodec^=avc1][height>=2880][fps>30]/      \
+	bestvideo[height>=2880][fps>30]/                    \
+	bestvideo[vcodec^=av01][height>=2160]/              \
+	bestvideo[vcodec^=vp09.02][height>=2160]/           \
+	bestvideo[vcodec^=vp09.00][height>=2160]/           \
+	bestvideo[vcodec^=vp9][height>=2160]/               \
+	bestvideo[vcodec^=avc1][height>=2160]/              \
+	bestvideo[height>=2160]/                            \
+	bestvideo)+(bestaudio[acodec^=opus]/bestaudio)/best \
+)"
+
+--verbose 
+--ignore-errors
+
+--sleep-requests 1
+--sleep-interval 4
+--max-sleep-interval 16
+
+--no-continue
+--no-overwrites
+--match-filter "!is_live & !live"
+
+--embed-metadata
+--write-info-json
+--write-thumbnail
+--write-description
+--all-subs
+--parse-metadata "%(title)s:%(meta_title)s"
+--parse-metadata "%(uploader)s:%(meta_artist)s"
+
+--output "%(title).255B/[%(id)s][%(upload_date>%Y-%m-%d)s].%(ext)s"
+--check-formats
+--concurrent-fragments 2
+--merge-output-format "mkv"
+--throttled-rate 100K
