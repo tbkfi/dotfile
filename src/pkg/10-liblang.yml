@@ -104,6 +104,13 @@ c:
     gentoo: sys-devel/gcc llvm-core/clang llvm-core/llvm
     arch: gcc clang
 
+doxygen:
+# Code document automation
+    debian: doxygen doxygen-latex
+    fedora: doxygen doxygen-latex
+    gentoo: app-text/doxygen
+    arch: doxygen
+
 google-perftools:
 # Fast malloc(), and perf analysis tools
     debian: google-perftools
