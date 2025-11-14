@@ -22,6 +22,7 @@
 
 --verbose 
 --ignore-errors
+--download-archive archive.txt
 
 --sleep-requests 1
 --sleep-interval 4
