@@ -125,12 +125,12 @@ firefox:
     gentoo: www-client/firefox:rapid
     arch: firefox
 
-chromium:
+#chromium:
 # Web browser
-    debian: chromium
-    fedora: chromium
-    gentoo: www-client/chromium:0/stable
-    arch: chromium
+#    debian: chromium
+#    fedora: chromium
+#    gentoo: www-client/chromium:0/stable
+#    arch: chromium
 
 libplacebo:
 # Rendering library
