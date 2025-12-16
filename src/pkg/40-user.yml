@@ -48,12 +48,12 @@ android-file-transfer-linux:
     gentoo: sys-fs/android-file-transfer-linux
     arch: android-file-transfer
 
-texlive:
-# TeX distribution
-    debian: texlive-full
-    fedora: texlive-scheme-full
-    gentoo: app-text/texlive
-    arch: texlive-basic texlive-latex texlive-latexextra
+latex:
+# TeX stuff
+    debian: texlive-full latexmk
+    fedora: texlive-scheme-full latexmk
+    gentoo: app-text/texlive dev-texlive/texlive-latexextra dev-tex/latexmk
+    arch: texlive-basic texlive-latex texlive-latexextra latexmk
 
 zathura:
 # Document viewer

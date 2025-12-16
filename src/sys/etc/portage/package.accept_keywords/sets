@@ -24,3 +24,5 @@ dev-libs/tree-sitter-vim ~amd64 # by: app-editors/neovim ~amd64
 media-sound/rsgain ~amd64 # no-stable, guru
 
 sci-electronics/kicad ~amd64 # keyword: python 3.13 not in stable
+
+gui-apps/wf-recorder ~amd64 # no-stable
