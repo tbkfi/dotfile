@@ -89,6 +89,13 @@ slurp:
     gentoo: gui-apps/slurp
     arch: slurp
 
+wf-recorder:
+# Screen recorder for Wayland
+    debian: wf-recorder
+    fedora: wf-recorder
+    gentoo: gui-apps/wf-recorder
+    arch: wf-recorder
+
 foot:
 # Terminal emulator
     debian: foot
