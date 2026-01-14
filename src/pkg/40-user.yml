@@ -52,7 +52,7 @@ latex:
 # TeX stuff
     debian: texlive-full latexmk
     fedora: texlive-scheme-full latexmk
-    gentoo: app-text/texlive dev-texlive/texlive-latexextra dev-tex/latexmk
+    gentoo: app-text/texlive dev-texlive/texlive-latexextra dev-tex/latexmk dev-tex/biber
     arch: texlive-basic texlive-latex texlive-latexextra latexmk
 
 zathura:
