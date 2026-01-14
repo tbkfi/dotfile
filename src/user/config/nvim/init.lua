@@ -9,7 +9,7 @@ require("plugin.treesitter")        -- Syntax Highlighting
 require("plugin.cmp")               -- Autocompletion
 require("plugin.lsp")               -- Language Server Protocol
 require("plugin.indent-blankline")  -- Visualise indentation and scope
---require("plugin.vimtex")            -- Latex Tools
+require("plugin.vimtex")            -- Latex Tools
 --require("plugin.markdown-preview")  -- Markdown Preview
 
 -- Language Servers
