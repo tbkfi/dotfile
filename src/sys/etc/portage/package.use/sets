@@ -17,6 +17,9 @@ app-text/xmlto text # by: app-crypt/pinentry (qt6)
 
 app-emulation/libvirt virt-network # want
 app-emulation/qemu usb # want
+app-emulation/virt-manager gui # want
+
+net-misc/spice-gtk usbredir # by: virt-manager (gui)
 
 app-emulation/qemu gnutls # by: app-emulation (vnc)
 net-dns/dnsmasq script # by: libvirt
