@@ -1,3 +1,7 @@
+# dot-base
+sys-kernel/gentoo-kernel ~amd64 # want
+virtual/dist-kernel ~amd64 # by: sys-kernel/gentoo-kernel ~amd64
+
 # dot-desktop
 gui-apps/tuigreet ~amd64 # no-stable
 
