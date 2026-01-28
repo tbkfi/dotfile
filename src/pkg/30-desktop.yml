@@ -116,3 +116,10 @@ libwacom:
     fedora: libwacom
     gentoo: dev-libs/libwacom
     arch: libwacom
+
+bluetooth:
+# Protocol support
+    debian: bluez
+    fedora: bluez
+    gentoo: net-wireless/bluez
+    arch: bluez
