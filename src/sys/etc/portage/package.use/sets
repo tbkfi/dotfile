@@ -31,15 +31,17 @@ app-admin/testdisk ntfs # want
 
 
 # @dot-desktop
-media-video/ffmpeg dav1d drm blueray cdio chromaprint chromium codec2 dvd gme jpegxl lame lcms libaom libplacebo opencl opengl openh264 opus rubberband shaderc svg svt-av1 vorbis vpx webp x264 x265 zimg # want
+media-video/ffmpeg dav1d drm blueray cdio chromaprint chromium codec2 dvd gme jpegxl lame lcms libaom libplacebo opencl opengl openh264 opus rubberband shaderc svg svt-av1 vorbis vpx webp x264 x265 zimg liblc3 # want
 media-video/pipewire extra # by: media-video/ffmpeg
-media-video/pipewire bluetooth ffmpeg modemmanager pipewire-alsa sound-server loudness # want
+media-video/pipewire bluetooth ffmpeg modemmanager pipewire-alsa sound-server loudness liblc3 # want
 
 gui-apps/grim jpeg # want
 
 gui-apps/waybar network pipewire pulseaudio upower wifi # want
 
 app-misc/nnn gitstatus nerdfonts # want
+
+net-wireless/bluez experimental # by: liblc3/pipewire
 
 
 # @dot-user
