@@ -82,3 +82,6 @@ sys-fs/android-file-transfer-linux gui # want
 media-gfx/inkscape svg2 exif imagemagick jpeg openmp # want
 dev-python/pillow tiff webp # by: media-gfx/imagemagick
 media-libs/tiff jpeg # by: media-gfx/imagemagick
+
+dev-embedded/openocd cmsis-dap # want
+dev-embedded/libftdi cxx # by: openocd

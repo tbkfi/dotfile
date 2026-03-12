@@ -1,10 +1,10 @@
 neovim:
 # Text editor
 # note: debian is very behind usually
-    debian: neovim
-    fedora: neovim
-    gentoo: app-editors/neovim
-    arch: neovim
+    debian: neovim tree-sitter-cli
+    fedora: neovim tree-sitter-cli
+    gentoo: app-editors/neovim dev-util/tree-sitter-cli
+    arch: neovim tree-sitter-cli
 
 pcsc:
 # Smart card tools
@@ -239,3 +239,10 @@ gtk4:
     fedora: gtk4 libadwaita
     gentoo: gui-libs/gtk gui-libs/libadwaita
     arch: gtk4 libadwaita
+
+openocd:
+# Embedded dev: Open On-Chip Debugger
+    debian: openocd libftdi
+    fedora: openocd libftdi
+    gentoo: dev-embedded/openocd dev-embedded/libftdi
+    arch: openocd libftdi
