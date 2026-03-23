@@ -1,4 +1,3 @@
--- BOOTSTRAP PLUGIN MANAGER
 -- see: https://lazy.folke.io/installation 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
@@ -9,22 +8,28 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 			{ "Failed to clone lazy.nvim:\n", "ErrorMsg" },
 			{ out, "WarningMsg" },
 			{ "\nPress any key to exit..." },
-			}, true, {})
-			vim.fn.getchar()
+		}, true, {})
+		vim.fn.getchar()
 		os.exit(1)
 	end
 end
 vim.opt.rtp:prepend(lazypath)
 
--- SETUP PLUGINS
--- see: https://lazy.folke.io/spec
 require("lazy").setup({
-	spec = {
-		-- load all in plugins directory
-		{ import = "plugin" },
+	version = nil, -- don't pin version
+	lazy = false,  -- plugin loading behaviour
+	ui = {
+		wrap = true,
+		backdrop = 75,
+		border = "rounded",
+	},
+	spec = { {import = "my-plugins"}, },
+	install = {
+		missing = true,
+		colorscheme = { "tokyonight" }
 	},
 	checker = {
-		-- auto check plugin updates
-		enabled = false
+		enabled = true, -- automatic updates
+		notify = false, -- no spam
 	},
 })

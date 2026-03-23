@@ -1,13 +1,18 @@
 return {
 	"neovim/nvim-lspconfig",
 	dependencies = {
-		"williamboman/mason.nvim", -- LSP Server manager
-		"hrsh7th/cmp-nvim-lsp",    -- Autocompletion for LSP
+		"mason-org/mason.nvim",
+		"saghen/blink.cmp",
 	},
-	config = function()
-		local mason = require("mason")
 
-		mason.setup()
+	config = function()
+		-- see: https://github.com/mason-org/mason.nvim/blob/main/doc/mason.txt
+		local mason = require("mason")
+		mason.setup({
+			ui = {
+				border = "rounded"
+			}
+		})
 
 		local mason_registry = require("mason-registry")
 		local servers = {
