@@ -1,6 +1,6 @@
 # dot-base
-sys-kernel/gentoo-kernel ~amd64 # want
-virtual/dist-kernel ~amd64 # by: sys-kernel/gentoo-kernel ~amd64
+#sys-kernel/gentoo-kernel ~amd64 # want
+#virtual/dist-kernel ~amd64 # by: sys-kernel/gentoo-kernel ~amd64
 
 # dot-desktop
 gui-apps/tuigreet ~amd64 # no-stable
@@ -9,6 +9,7 @@ gui-apps/tuigreet ~amd64 # no-stable
 www-client/firefox ~amd64 # want
 dev-libs/nss ~amd64 # by: www-client/firefox:rapid
 dev-libs/nspr ~amd64 # by: www-client/firefox:rapid
+www-client/firefox-l10n ~amd64 # by: www-client/firefox:rapid
 
 mail-client/thunderbird ~amd64 # want
 
