@@ -21,10 +21,14 @@ app-misc/yazi ~amd64 # no-stable, guru
 
 media-gfx/swayimg ~amd64 # guru
 
+#=app-editors/neovim-9999 ** # want: >=0.12
 app-editors/neovim ~amd64 # want
 dev-libs/tree-sitter ~amd64 # by: app-editors/neovim ~amd64
 dev-libs/tree-sitter-c ~amd64 # by: app-editors/neovim ~amd64
 dev-libs/tree-sitter-vim ~amd64 # by: app-editors/neovim ~amd64
+dev-lua/luv ~amd64 # by: app-editors/neovim ~amd64
+dev-libs/libuv ~amd64 # by: app-editors/neovim ~amd64
+dev-libs/libutf8proc ~amd64 # by: app-editors/neovim ~amd64
 
 media-sound/rsgain ~amd64 # no-stable, guru
 
@@ -32,7 +36,8 @@ sci-electronics/kicad ~amd64 # keyword: python 3.13 not in stable
 
 gui-apps/wf-recorder ~amd64 # no-stable
 
-#=app-editors/neovim-9999 ** # want: >=0.12
 
 dev-embedded/openocd ~amd64 # no-stable
 dev-embedded/freertos-gdb ~amd64 # no-stable, guru
+
+media-video/pipewire ~amd64 # want: >= 1.5.85 (BLE Audio, LC3 codec related)
