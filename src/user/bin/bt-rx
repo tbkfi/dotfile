@@ -1,0 +1,8 @@
+#!/bin/bash
+BIN_OBEX="/usr/libexec/bluetooth/obexd"
+
+if [[ -x $BIN_OBEX ]]; then
+	$BIN_OBEX --debug=DEBUG --nodetach --auto-accept --root="$HOME"
+else
+	echo "BT-RX: Binary not present ($BIN_OBEX)!"
+fi
