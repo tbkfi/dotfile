@@ -9,11 +9,11 @@ INIT_DIR="$TARGET_DIR/init"
 
 ## TODO: Preamble, should be for each distro, with guards.
 # Arch:
-# 'pacman -Syu'
+# 'pacman -Sy'
 # 'pacman -S git archinstall'
 # 'git switch vai-ws'
 # 'git pull https://github.com/tbkfi/dotfile.git vai-ws'
-pacman -Syu --noconfirm --needed
+pacman -Sy --noconfirm --needed
 pacman -S --noconfirm --needed git archinstall
 
 echo "==> Fetching repository to $TARGET_DIR..."
