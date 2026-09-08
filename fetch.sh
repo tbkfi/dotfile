@@ -6,6 +6,12 @@ REPO_URL="https://github.com/tbkfi/dotfile.git"
 TARBALL_URL="https://github.com/tbkfi/dotfile/archive/refs/heads/main.tar.gz"
 TARGET_DIR="/tmp/dotfile"
 
+## TODO: Preamble, should be for each distro, with guards.
+# Arch:
+# 'pacman -Sy'
+# 'pacman -S git'
+
+
 echo "==> Fetching repository to $TARGET_DIR..."
 rm -rf "$TARGET_DIR"
 mkdir -p "$TARGET_DIR"
