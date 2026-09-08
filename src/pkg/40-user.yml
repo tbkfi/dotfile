@@ -32,7 +32,7 @@ wireshark:
     debian: wireshark
     fedora: wireshark
     gentoo: net-analyzer/wireshark
-    arch: wireshark
+    arch: wireshark-cli wireshark-qt
 
 fuse3:
 # Userspace filesystems
