@@ -1,2 +1,30 @@
-# Keep file empty, define in fragments.
-include ~/.config/sway/config.d/*
+# EXAMPLE STRUCTURE
+set $confs ~/.config/sway/config.d
+
+# Functional
+include $confs/keybinds.conf
+include $confs/scripts.conf
+include $confs/overrides.conf
+include $confs/xwayland.conf
+
+include $confs/programs/waybar.conf
+include $confs/programs/startup.conf
+
+# Input devices
+include $confs/input/keyboard.conf
+include $confs/input/mouse.conf
+include $confs/input/touchpad.conf
+
+# Output devices
+include $confs/output/thinkpad-p16s.conf
+include $confs/output/asus-pg329.conf
+
+# Look
+include $confs/look/general.conf
+include $confs/look/colours.conf
+
+include $confs/look/font.conf
+include $confs/look/cursor.conf
+
+#include $confs/look/wallpaper-img.conf
+include $confs/look/wallpaper-colour.conf
