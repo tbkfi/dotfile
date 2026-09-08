@@ -38,7 +38,7 @@ tuigreet:
     debian: greetd tuigreet
     fedora: greetd tuigreet
     gentoo: gui-libs/greetd gui-apps/tuigreet
-    arch: greetd tuigreet
+    arch: greetd greetd-tuigreet
 
 swaywm:
 # Tiling Window Manager
