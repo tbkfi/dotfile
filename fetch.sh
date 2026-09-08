@@ -10,6 +10,8 @@ TARGET_DIR="/tmp/dotfile"
 # Arch:
 # 'pacman -Sy'
 # 'pacman -S git'
+# 'git switch vai-ws'
+# 'git pull https://github.com/tbkfi/dotfile.git vai-ws'
 
 
 echo "==> Fetching repository to $TARGET_DIR..."
