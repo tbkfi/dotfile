@@ -8,8 +8,8 @@ TARGET_DIR="/tmp/dotfile"
 
 ## TODO: Preamble, should be for each distro, with guards.
 # Arch:
-# 'pacman -Sy'
-# 'pacman -S git'
+# 'pacman -Syu'
+# 'pacman -S git archinstall'
 # 'git switch vai-ws'
 # 'git pull https://github.com/tbkfi/dotfile.git vai-ws'
 
