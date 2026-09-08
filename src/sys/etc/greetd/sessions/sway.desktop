@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Sway
+Comment=Tiling Window Manager Desktop
+Exec=bash -c "export WLR_NO_HARDWARE_CURSORS=1; dbus-run-session sway"
+Type=Application
