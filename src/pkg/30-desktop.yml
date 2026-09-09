@@ -5,12 +5,12 @@ polkit:
     gentoo: sys-auth/polkit
     arch: polkit
 
-xdg-desktop-portal:
+xdg-common:
 # D-Bus interfaces
     debian: xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr
     fedora: xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr
     gentoo: sys-apps/xdg-desktop-portal sys-apps/xdg-desktop-portal-gtk gui-libs/xdg-desktop-portal-wlr
-    arch: xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr
+    arch: xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr xdg-user-dirs
 
 fontconfig:
 # Font configuration library
@@ -56,10 +56,10 @@ wl-clipboard:
 
 mako:
 # System notifications
-    debian: mako-notifier
-    fedora: mako
+    debian: mako-notifier libnotify
+    fedora: mako libnotify
     gentoo: gui-apps/mako x11-libs/libnotify
-    arch: mako
+    arch: mako libnotify
 
 waybar:
 # Wayland desktop panel
@@ -123,3 +123,10 @@ bluetooth:
     fedora: bluez
     gentoo: net-wireless/bluez
     arch: bluez
+
+vulkan:
+# Vulkan packages
+    debian:
+    fedora:
+    gentoo:
+    arch: vulkan-swrast

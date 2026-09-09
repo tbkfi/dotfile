@@ -8,6 +8,15 @@ Base system profile is `no-multilib/hardened/systemd`, and `-X` is enabled
 globally. Other packages are tracked in `/src/pkg` directory, and include matches for Debian, Fedora, and
 Arch in addition to Gentoo.
 
+# Usage
+
+```
+git clone --recurse-submodules https://github.com/tbkfi/dotfile.git
+bash dotfile/user/bin/dot-refresh
+```
+
+Possibly also `git lfs pull` if cloning didn't fetch everything.
+
 ## Features
 
 Lean 64-bit only Linux desktop on Sway. One-step deployment of desired user
@@ -25,7 +34,7 @@ crossdev repo on Gentoo, and build the target toolchains.
 The `embedded-{mpy,c}` repositories contain plain environments for micropython and C/C++ environments,
 and three small scripts for setup (environment, tools), building (firmware, project), and flashing (src, libs/includes).
 
-## Usage
+## Contents
 
 Currently the general system configurations are copied over only during initial OS install.
 The `/src/machine/` directory contains machine-specific configurations that

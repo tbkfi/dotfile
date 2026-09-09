@@ -18,6 +18,7 @@ include $confs/input/touchpad.conf
 # Output devices
 include $confs/output/thinkpad-p16s.conf
 include $confs/output/asus-pg329.conf
+include $confs/output/virtual.conf
 
 # Look
 include $confs/look/general.conf

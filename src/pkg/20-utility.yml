@@ -5,6 +5,13 @@ coreutils:
     gentoo: sys-apps/coreutils
     arch: coreutils
 
+manuals:
+# Manual pages, and related
+    debian: man-db
+    fedora: man-db
+    gentoo: sys-apps/man-db
+    arch: man-db
+
 pciutils:
 # PCI-device utilities
     debian: pciutils
@@ -328,3 +335,10 @@ binwalk:
     fedora: binwalk
     gentoo: app-misc/binwalk
     arch: binwalk
+
+open-vm-tools:
+# VMware guest tools
+    debian: open-vm-tools
+    fedora: open-vm-tools
+    gentoo: app-emulation/open-vm-tools
+    arch: open-vm-tools

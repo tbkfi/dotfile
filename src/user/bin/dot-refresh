@@ -43,14 +43,20 @@ dot_xdg() {
 
 	# Update XDG
 	echo -e "\n> xdg-user-dirs"
-	xdg-user-dirs-update --set DESKTOP	"$BASE/desktop"
-	xdg-user-dirs-update --set DOCUMENTS	"$BASE/document"
-	xdg-user-dirs-update --set DOWNLOAD	"$BASE/download"
-	xdg-user-dirs-update --set MUSIC	"$BASE/music"
-	xdg-user-dirs-update --set PICTURES	"$BASE/picture"
-	xdg-user-dirs-update --set PUBLICSHARE	"$BASE/public"
-	xdg-user-dirs-update --set TEMPLATE	"$BASE/template"
-	xdg-user-dirs-update --set VIDEO	"$BASE/video"
+
+	if ! command -v xdg-user-dirs-update; then
+		echo " * missing 'xdg-user-dirs' package!"
+		return 1
+	fi
+
+	xdg-user-dirs-update --set DESKTOP     "$BASE/desktop"
+	xdg-user-dirs-update --set DOCUMENTS   "$BASE/document"
+	xdg-user-dirs-update --set DOWNLOAD    "$BASE/download"
+	xdg-user-dirs-update --set MUSIC       "$BASE/music"
+	xdg-user-dirs-update --set PICTURES    "$BASE/picture"
+	xdg-user-dirs-update --set PUBLICSHARE "$BASE/public"
+	xdg-user-dirs-update --set TEMPLATE    "$BASE/template"
+	xdg-user-dirs-update --set VIDEO       "$BASE/video"
 
 	# Create subdirs
 	for DIR in desktop document download music picture public template video; do

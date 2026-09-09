@@ -10,22 +10,32 @@ return {
 	config = function()
 		-- https://github.com/nvim-treesitter/nvim-treesitter/blob/main/SUPPORTED_LANGUAGES.md
 		local ts = require("nvim-treesitter")
+
 		local parsers = {
-			-- Core
+			-- TypeScript & Web Ecosystem
+			"typescript",
+			"tsx",
+			"javascript",
+			"jsdoc",
+			"html",
+			"css",
+			"scss",
+			"json",
+			"graphql",
+			-- Core & Languages
 			"asm",
 			"c",
 			"cpp",
+			"robot",
 			"python",
 			"requirements",
 			"bash",
 			"lua",
 			"rust",
 			"go",
-			"javascript",
-			"typescript",
 			"latex",
 			"cuda",
-			-- Tooling
+			-- Tooling & Config
 			"make",
 			"cmake",
 			"regex",
@@ -41,55 +51,45 @@ return {
 			"query",
 			"jq",
 			"dockerfile",
-			-- Doc
+			-- Docs & Data
 			"markdown",
 			"markdown_inline",
 			"vimdoc",
 			"luadoc",
-			-- Data
-			"html",
-			"css",
-			"scss",
-			"json",
 			"csv",
 			"ini",
 			"yaml",
 			"toml",
 			"xml",
-			"bibtex"
+			"bibtex",
 		}
 
+		-- Install parsers asynchronously without blocking startup
 		ts.install(parsers)
-		ts.update()
 
-		-- YOINK: https://github.com/chrisgrieser/.config/blob/main/nvim/lua/plugin-specs/treesitter.lua
-		-- auto-start highlights & indentation
+		-- Auto-start highlights & selective indentation
 		vim.api.nvim_create_autocmd("FileType", {
-			desc = "User: enable treesitter highlighting",
+			desc = "User: enable treesitter highlighting and indentation",
 			callback = function(ctx)
-				-- highlights
-				local hasStarted = pcall(vim.treesitter.start, ctx.buf) -- errors for filetypes with no parser
+				-- Enable Treesitter highlighting (fails gracefully if parser is missing)
+				local has_started = pcall(vim.treesitter.start, ctx.buf)
 
-				-- indent
-				local dontUseTreesitterIndent = { "zsh", "bash", "markdown", "javascript" }
-				if hasStarted and not vim.list_contains(dontUseTreesitterIndent, ctx.match) then
+				-- Disable TS indent for filetypes known to have unstable Treesitter indenting
+				local dont_use_ts_indent = { "zsh", "bash", "markdown", "javascript", "typescript", "typescriptreact" }
+				if has_started and not vim.list_contains(dont_use_ts_indent, ctx.match) then
 					vim.bo[ctx.buf].indentexpr = "v:lua.require('nvim-treesitter').indentexpr()"
 				end
 			end,
 		})
 
-		-- comments parser
+		-- Comment highlighting tweaks
 		vim.api.nvim_create_autocmd({ "ColorScheme", "VimEnter" }, {
-			desc = "User: highlights for the Treesitter `comments` parser",
+			desc = "User: highlights for Treesitter comments",
 			callback = function()
-				-- FIX todo-comments in languages where LSP overwrites their highlight
-				-- https://github.com/stsewd/tree-sitter-comment/issues/22
-				-- https://github.com/LuaLS/lua-language-server/issues/1809
+				-- Prevent LSP semantic tokens from overriding comment highlights (e.g. todo-comments)
 				vim.api.nvim_set_hl(0, "@lsp.type.comment", {})
-
-				-- Define `@comment.bold` for `queries/comment/highlights.scm`
 				vim.api.nvim_set_hl(0, "@comment.bold", { bold = true })
 			end,
 		})
-	end
+	end,
 }
