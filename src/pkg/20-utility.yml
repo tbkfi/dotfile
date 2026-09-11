@@ -328,3 +328,10 @@ binwalk:
     fedora: binwalk
     gentoo: app-misc/binwalk
     arch: binwalk
+
+vaapi-utils:
+# Video Acceleration API Utilities
+    debian: libva-utils
+    fedora: libva-utils
+    gentoo: media-video/libva-utils
+    arch:  libva-utils
