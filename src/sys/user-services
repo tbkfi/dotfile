@@ -6,3 +6,4 @@ gpg-agent.service
 gpg-agent-ssh.service
 gpg-agent-extra.service
 mako.service
+obex.service
