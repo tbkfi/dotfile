@@ -2,18 +2,23 @@
 #sys-kernel/gentoo-kernel ~amd64 # want
 #virtual/dist-kernel ~amd64 # by: sys-kernel/gentoo-kernel ~amd64
 
+sys-kernel/gentoo-sources ~amd64 # want: counter regressions
+
+
 # dot-desktop
 gui-apps/tuigreet ~amd64 # no-stable
 
+
 # dot-user
-www-client/firefox ~amd64 # want
-dev-libs/nss ~amd64 # by: www-client/firefox:rapid
-dev-libs/nspr ~amd64 # by: www-client/firefox:rapid
-www-client/firefox-l10n ~amd64 # by: www-client/firefox:rapid
+#www-client/firefox ~amd64 # want
+#dev-libs/nss ~amd64 # by: www-client/firefox:rapid
+#dev-libs/nspr ~amd64 # by: www-client/firefox:rapid
+#www-client/firefox-l10n ~amd64 # by: www-client/firefox:rapid
 
-mail-client/thunderbird ~amd64 # want
+#mail-client/thunderbird ~amd64 # want
 
-net-misc/moonlight ~amd64 # no-stable
+#net-misc/moonlight ~amd64 # no-stable
+net-misc/moonlight ** # upstream hasn't created rels
 
 media-gfx/gimp ~amd64 # feature: >=3.0 Wayland supercedes X, missing stable.
 
@@ -26,6 +31,8 @@ app-editors/neovim ~amd64 # want
 dev-libs/tree-sitter ~amd64 # by: app-editors/neovim ~amd64
 dev-libs/tree-sitter-c ~amd64 # by: app-editors/neovim ~amd64
 dev-libs/tree-sitter-vim ~amd64 # by: app-editors/neovim ~amd64
+dev-libs/tree-sitter-lua ~amd64 # by: app-editors/neovim ~amd64
+dev-libs/tree-sitter-query ~amd64 # by: app-editors/neovim ~amd64
 dev-lua/luv ~amd64 # by: app-editors/neovim ~amd64
 dev-libs/libuv ~amd64 # by: app-editors/neovim ~amd64
 dev-libs/libutf8proc ~amd64 # by: app-editors/neovim ~amd64
@@ -36,8 +43,14 @@ sci-electronics/kicad ~amd64 # keyword: python 3.13 not in stable
 
 gui-apps/wf-recorder ~amd64 # no-stable
 
-
-dev-embedded/openocd ~amd64 # no-stable
+#dev-embedded/openocd ~amd64 # no-stable
+dev-embedded/openocd ** # no-stable
 dev-embedded/freertos-gdb ~amd64 # no-stable, guru
 
 media-video/pipewire ~amd64 # want: >= 1.5.85 (BLE Audio, LC3 codec related)
+
+app-misc/brightnessctl ~amd64 # want: previous solution broke
+
+media-video/obs-studio ~amd64 # want: no-stable
+
+media-sound/deep-filter ~amd64 # no-stable, guru

@@ -29,6 +29,7 @@ media-gfx/imagemagick fontconfig heif jpeg jpegxl lcms lzma opencl openmp raw sv
 
 app-admin/testdisk ntfs # want
 
+sys-apps/fwupd amdgpu bluetooth flashrom modemmanager nvme uefi gnutls # want
 
 # @dot-desktop
 media-video/ffmpeg dav1d drm blueray cdio chromaprint chromium codec2 dvd gme jpegxl lame lcms libaom libplacebo opencl opengl openh264 opus rubberband shaderc svg svt-av1 vorbis vpx webp x264 x265 zimg liblc3 # want
@@ -85,3 +86,13 @@ media-libs/tiff jpeg # by: media-gfx/imagemagick
 
 dev-embedded/openocd cmsis-dap # want
 dev-embedded/libftdi cxx # by: openocd
+
+
+
+media-video/obs-studio screencast v4l # want
+dev-qt/qtbase X # by: obs-studio
+x11-libs/libxkbcommon X # by: obs-studio
+
+media-sound/deep-filter ladspa # want (deep-filter, microphone bg noise suppression)
+sci-libs/hdf5 -hl # conflict: threads
+media-libs/lsp-plugins ladspa -lv2 -X -jack -vst # by: mic-filter compressor script
