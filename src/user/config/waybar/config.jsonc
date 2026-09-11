@@ -13,7 +13,7 @@
 		"temperature"
 	],
 	"modules-center": [
-		"pulseaudio",
+		"wireplumber",
 		"clock",
 		"backlight"
 	],
@@ -60,13 +60,11 @@
 	},
 
 	// CENTER-MODULE
-	"pulseaudio": {
-		"format": "{icon} {volume}",
-		"format-muted": "mut.",
-		"format-icons": {
-			"default": ["vol.", "vol.", "vol."]
-		},
-		"on-click": "pavucontrol"
+	"wireplumber": {
+		"format": "{volume}%",
+		"format-muted": "",
+		"max-volume": 100,
+		"scroll-step": 5
 	},
 	"clock": {
 		"interval": 1,

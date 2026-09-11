@@ -93,7 +93,7 @@ window#waybar {
 }
 
 #battery, #memory, #disk, #cpu, #temperature,
-#pulseaudio, #clock, #backlight, 
+#wireplumber, #clock, #backlight, 
 #idle_inhibitor, #mode, #workspaces, #network {
 	background: @clr-black-half;
 	color: @clr-white;
@@ -148,7 +148,7 @@ window#waybar {
 }
 
 /* CENTER-MODULE */
-#pulseaudio.muted {
+#wireplumber.muted {
 	color: @clr-grey;
 }
 
