@@ -153,3 +153,10 @@ javascript:
     fedora: nodejs npm
     gentoo: net-libs/nodejs
     arch: nodejs npm
+
+libva:
+# Hardware Video Acceleration API
+    debian: libva
+    fedora: libva
+    gentoo: media-libs/libva
+    arch: libva
