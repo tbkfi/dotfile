@@ -1,0 +1,121 @@
+#!/bin/bash
+# Monitor microphone (raw|filtered) through the headphones.
+set -eu
+
+HARDWARE_SOURCE="${MIC_HARDWARE_SOURCE:-alsa_input.usb-RODE_Microphones_RODE_NT-USB-00.analog-stereo}"
+HARDWARE_JACK="${MIC_HARDWARE_JACK:-alsa_output.usb-RODE_Microphones_RODE_NT-USB-00.analog-stereo}"
+FILTERED_NAME="${MIC_FILTERED_NAME:-mic_filtered}"
+MONITOR_DELAY="${MONITOR_DELAY:-0}"
+STATE=/tmp/mic-monitor.module
+
+usage() {
+    printf '%s\n' \
+        "Usage: $0 [-f] start|stop|status" \
+        "  start     loop hardware source -> default sink" \
+        "  start -f  loop \$MIC_FILTERED_NAME -> default sink" \
+        "  stop      unload this monitor and any leftover module-loopback"
+}
+
+FILTERED=0
+while getopts f opt; do
+    case "$opt" in
+        f) FILTERED=1 ;;
+        *) usage; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+loopback_ids() {
+    pactl list short modules 2>/dev/null | awk '/module-loopback/ {print $1}'
+}
+
+state_alive() {
+    [ -f "$STATE" ] || return 1
+    ID=$(cat "$STATE")
+    [ -n "$ID" ] || return 1
+    pactl list short modules 2>/dev/null | awk '{print $1}' | grep -qx "$ID"
+}
+
+status() {
+    echo "default source: $(pactl get-default-source)"
+    echo "default sink  : $(pactl get-default-sink)"
+    pactl list short sources | grep -E "$HARDWARE_SOURCE|$FILTERED_NAME" || true
+    echo "loopbacks:"
+    IDS=$(loopback_ids)
+    if [ -n "$IDS" ]; then
+        echo "$IDS"
+    else
+        echo "(none)"
+    fi
+    if state_alive; then
+        echo "state: $(cat "$STATE") active"
+    elif [ -f "$STATE" ]; then
+        echo "state: stale $(cat "$STATE")"
+    else
+        echo "state: none"
+    fi
+}
+
+start_monitor() {
+    if state_alive; then
+        echo "already running (module $(cat "$STATE")). stop first." >&2
+        exit 1
+    fi
+    IDS=$(loopback_ids)
+    if [ -n "$IDS" ]; then
+        echo "module-loopback already loaded: $IDS" >&2
+        echo "run: $0 stop" >&2
+        exit 1
+    fi
+    rm -f "$STATE"
+
+    if [ "$FILTERED" -eq 1 ]; then
+        MIC=$FILTERED_NAME
+    else
+        MIC=$HARDWARE_SOURCE
+    fi
+    if ! pactl list short sources | grep -Fq "$MIC"; then
+        echo "source not found: $MIC" >&2
+        exit 1
+    fi
+    SINK=${SINK:-$(pactl get-default-sink)}
+    if [ "$SINK" = "$HARDWARE_JACK" ]; then
+        echo "default sink is the hardware jack. Set SINK to PC headphones." >&2
+        exit 1
+    fi
+    echo "capture : $MIC"
+    echo "playback: $SINK"
+    MODULE_ID=$(pactl load-module module-loopback \
+        source="$MIC" sink="$SINK" latency_msec="$MONITOR_DELAY" \
+        source_dont_move=true sink_dont_move=true)
+    echo "$MODULE_ID" > "$STATE"
+    echo "loopback $MODULE_ID loaded"
+}
+
+stop_monitor() {
+    STOPPED=0
+    if [ -f "$STATE" ]; then
+        ID=$(cat "$STATE")
+        if pactl unload-module "$ID" 2>/dev/null; then
+            echo "unloaded $ID"
+            STOPPED=1
+        fi
+        rm -f "$STATE"
+    fi
+    for ID in $(loopback_ids); do
+        pactl unload-module "$ID" 2>/dev/null || true
+        echo "unloaded leftover $ID"
+        STOPPED=1
+    done
+    if [ "$STOPPED" -eq 0 ]; then
+        echo "no loopback loaded"
+    fi
+}
+
+cmd=${1:-status}
+case "$cmd" in
+    start)  start_monitor ;;
+    stop)   stop_monitor ;;
+    status) status ;;
+    *) usage; exit 1 ;;
+esac
