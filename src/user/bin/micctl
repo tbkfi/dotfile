@@ -1,20 +1,25 @@
 #!/bin/bash
-# Tuomo Björk
+# === Microphone Control
+# Monitor, Filter, Transmit/Receive voice data.
+# Support for Waybar JSON interface.
 #
-# 'micctl' (Microphone Control)
-# version 1
-# Requires: envsubst, pactl, systemctl --user
+# * Target use cases:
+#   - Safe filtered input for VoIP programs.
+#   - Fast monitoring to check voice quality locally.
+#   - Transmit voice data from local machine to remote desktop
+#     as an usable source there for VoIP or Games.
+#   - Monitor source (raw|filter) usage and activations.
 #
-# Microphone Control enabling local filtering, monitoring,
-# and transmission via sidechannel between hosts using VBAN (e.g. Remote Desktop).
-#
-# CHANGELOG:
-# - version 1, 2026-09-11: First merge of monitoring, filter, and TX/RX.
+# === CHANGELOG:
+# - version 2 (2026-09-12, tbk): Add Waybar JSON support for easier control and
+#                                visual feedback of configuration state and activity.
+# - version 1 (2026-09-11, tbk): First merge of Monitoring/Filtering/RX+TX.
 set -eu
-
-MICCTL_VERSION=1
+MICCTL_VERSION=2
 
 # --- names ---------------------------------------------------------------
+# note: Change MIC_HARDWARE_SOURCE to your microphone.
+#       Otherwise sensible to leave as-is for consitent naming scheme.
 export MIC_HARDWARE_SOURCE="${MIC_HARDWARE_SOURCE:-alsa_input.usb-RODE_Microphones_RODE_NT-USB-00.analog-stereo}"
 export MIC_HARDWARE_JACK="${MIC_HARDWARE_JACK:-alsa_output.usb-RODE_Microphones_RODE_NT-USB-00.analog-stereo}"
 export MIC_FILTERED_NAME="${MIC_FILTERED_NAME:-mic_filtered}"
@@ -25,6 +30,8 @@ export MIC_REMOTE_DESC="${MIC_REMOTE_DESC:-Mic Remote}"
 export MIC_VBAN_SINK="${MIC_VBAN_SINK:-vban_${MIC_REMOTE_NAME}}"
 
 # --- DeepFilter + LSP ----------------------------------------------------
+# note: Tunables for filtering steps. You can spend a lot of time here,
+#       and many values depend on specific mic/environmental attributes.
 export MIC_DF_PLUGIN="${MIC_DF_PLUGIN:-/usr/lib64/libdeep_filter_ladspa.so}"
 export MIC_DF_ATTEN="${MIC_DF_ATTEN:-48}"
 export MIC_LSP_PLUGIN="${MIC_LSP_PLUGIN:-/usr/lib64/ladspa/lsp-plugins-ladspa.so}"
@@ -41,8 +48,9 @@ export MIC_LIMIT_THRESH="${MIC_LIMIT_THRESH:-0.79}"
 export MIC_LIMIT_LOOKAHEAD="${MIC_LIMIT_LOOKAHEAD:-5}"
 
 # --- VBAN ----------------------------------------------------------------
-# MIC_VBAN_DEST is required for TX. Change it to the Remote Host's IP.
-export MIC_VBAN_DEST="${MIC_VBAN_DEST:-192.168.10.14}" # <- EDIT HERE
+# note: Change destination to the machine that RX voice data.
+#       Optionally also lock down the RX bind address, and tune latency.
+export MIC_VBAN_DEST="${MIC_VBAN_DEST:-192.168.10.14}"
 export MIC_VBAN_BIND="${MIC_VBAN_BIND:-0.0.0.0}"
 export MIC_VBAN_PORT="${MIC_VBAN_PORT:-6980}"
 export MIC_VBAN_SESS="${MIC_VBAN_SESS:-${MIC_REMOTE_NAME}}"
@@ -51,25 +59,25 @@ export MIC_VBAN_TX_LATENCY="${MIC_VBAN_TX_LATENCY:-10}"
 
 PW_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/pipewire/pipewire.conf.d"
 FILTER_CONF="$PW_DIR/99-${MIC_FILTERED_NAME}.conf"
-RX_CONF="$PW_DIR/80-vban-rx.conf"
-TX_CONF="$PW_DIR/81-vban-tx.conf"
+RX_CONF="$PW_DIR/80-vban-recv.conf"
+TX_CONF="$PW_DIR/81-vban-send.conf"
 MON_STATE=/tmp/micctl-monitor.module
 TX_STATE=/tmp/micctl-vban-tx.module
 
+FILTER_VARS='${MIC_HARDWARE_SOURCE} ${MIC_FILTERED_NAME} ${MIC_FILTERED_DESC} ${MIC_FILTERED_CAPTURE_NAME} ${MIC_DF_PLUGIN} ${MIC_DF_ATTEN} ${MIC_LSP_PLUGIN} ${MIC_COMP_LABEL} ${MIC_LIMIT_LABEL} ${MIC_COMP_MODE} ${MIC_COMP_RATIO} ${MIC_COMP_THRESH} ${MIC_COMP_ATTACK} ${MIC_COMP_RELEASE} ${MIC_COMP_MAKEUP} ${MIC_COMP_LOOKAHEAD} ${MIC_LIMIT_THRESH} ${MIC_LIMIT_LOOKAHEAD}'
+RX_VARS='${MIC_VBAN_BIND} ${MIC_VBAN_PORT} ${MIC_VBAN_RX_LATENCY} ${MIC_REMOTE_NAME} ${MIC_REMOTE_DESC} ${MIC_VBAN_SESS}'
+TX_VARS='${MIC_VBAN_DEST} ${MIC_VBAN_PORT} ${MIC_VBAN_SESS} ${MIC_VBAN_TX_LATENCY} ${MIC_VBAN_SINK} ${MIC_REMOTE_DESC}'
 
 usage() {
     printf '%s\n' \
         "micctl $MICCTL_VERSION" \
         "Usage:" \
-        "  micctl status" \
-        "  micctl filter install|remove" \
-        "  micctl monitor hardware|filtered|remote|stop" \
-        "  micctl rx on|off" \
-        "  micctl tx on|off" \
-        "" \
-        "Env (common): MIC_HARDWARE_SOURCE MIC_FILTERED_NAME MIC_REMOTE_NAME" \
-        "Filter:       MIC_DF_ATTEN MIC_COMP_* MIC_LIMIT_*" \
-        "VBAN:         MIC_VBAN_DEST MIC_VBAN_BIND MIC_VBAN_PORT MIC_VBAN_RX_LATENCY"
+        "  micctl status | reload | dump" \
+        "  micctl filter on|off|toggle" \
+        "  micctl rx     on|off|toggle" \
+        "  micctl tx     on|off|toggle" \
+        "  micctl monitor hardware|filtered|remote|off|cycle" \
+        "  micctl waybar filter|rx|tx|monitor"
 }
 
 need() {
@@ -79,30 +87,65 @@ need() {
     }
 }
 
-have_source() { pactl list short sources 2>/dev/null | grep -Fq "$1"; }
-have_sink()   { pactl list short sinks 2>/dev/null | grep -Fq "$1"; }
+have_source() {
+    pactl list short sources 2>/dev/null | awk -v n="$1" '$2 == n { found=1 } END { exit !found }'
+}
+have_sink() {
+    pactl list short sinks 2>/dev/null | awk -v n="$1" '$2 == n { found=1 } END { exit !found }'
+}
+
+# missing | suspended | running
+node_pulse_state() {
+    KIND=$1
+    NAME=$2
+    LINE=$(pactl list short "$KIND" 2>/dev/null | awk -v n="$NAME" '$2 == n { print; exit }')
+    [ -n "$LINE" ] || { echo missing; return; }
+    echo "$LINE" | awk '{
+        s=$NF
+        if (s=="RUNNING") print "running"
+        else print "suspended"
+    }'
+}
+
+state_id() {
+    [ -f "$1" ] || return 1
+    awk '{print $1}' "$1"
+}
+
+state_mode() {
+    [ -f "$1" ] || { echo off; return; }
+    awk '{print ($2 == "" ? "unknown" : $2)}' "$1"
+}
 
 module_alive() {
     [ -f "$1" ] || return 1
-    ID=$(cat "$1")
+    ID=$(state_id "$1") || return 1
     [ -n "$ID" ] || return 1
     pactl list short modules 2>/dev/null | awk '{print $1}' | grep -qx "$ID"
+}
+
+# True only if a loopback from filtered mic into the VBAN sink exists.
+tx_loop_alive() {
+    pactl list short modules 2>/dev/null | awk -v src="$MIC_FILTERED_NAME" -v snk="$MIC_VBAN_SINK" '
+        $2 == "module-loopback" && index($0, src) && index($0, snk) { found=1 }
+        END { exit !found }
+    '
 }
 
 unload_state() {
     FILE=$1
     [ -f "$FILE" ] || return 0
-    ID=$(cat "$FILE")
+    ID=$(state_id "$FILE" || true)
     pactl unload-module "$ID" 2>/dev/null || true
     rm -f "$FILE"
-    [ -n "$ID" ] && echo "unloaded module $ID"
+    [ -n "${ID:-}" ] && echo "unloaded module $ID"
 }
 
 reload_pw() {
     echo "restarting pipewire"
     systemctl --user restart pipewire pipewire-pulse wireplumber
     i=0
-    while [ "$i" -lt 20 ]; do
+    while [ "$i" -lt 25 ]; do
         pactl info >/dev/null 2>&1 && return 0
         i=$((i + 1))
         sleep 0.2
@@ -131,6 +174,15 @@ wait_sink() {
         sleep 0.2
     done
     return 1
+}
+
+write_conf() {
+    need envsubst
+    mkdir -p "$PW_DIR"
+    TMP=$(mktemp)
+    $1 | envsubst "$2" > "$TMP"
+    mv "$TMP" "$3"
+    echo "wrote $3"
 }
 
 # --- templates -----------------------------------------------------------
@@ -210,7 +262,7 @@ rx_template() {
 context.modules = [
     { name = libpipewire-module-vban-recv
         args = {
-            source.ip           = ${MIC_VBAN_BIND}
+            source.ip           = "${MIC_VBAN_BIND}"
             source.port         = ${MIC_VBAN_PORT}
             sess.latency.msec   = ${MIC_VBAN_RX_LATENCY}
             node.always-process = true
@@ -221,8 +273,16 @@ context.modules = [
                 audio.rate       = 48000
             }
             stream.rules = [
-                { matches = [ { sess.name = "${MIC_VBAN_SESS}" } ]
-                  actions = { create-stream = { sess.latency.msec = ${MIC_VBAN_RX_LATENCY} } } }
+                { matches = [ { sess.name = "~.*" } ]
+                  actions = {
+                    create-stream = {
+                      sess.latency.msec = ${MIC_VBAN_RX_LATENCY}
+                      media.class      = "Audio/Source"
+                      node.name        = "${MIC_REMOTE_NAME}"
+                      node.description = "${MIC_REMOTE_DESC}"
+                    }
+                  }
+                }
             ]
         }
     }
@@ -236,7 +296,7 @@ tx_template() {
 context.modules = [
     { name = libpipewire-module-vban-send
         args = {
-            destination.ip      = ${MIC_VBAN_DEST}
+            destination.ip      = "${MIC_VBAN_DEST}"
             destination.port    = ${MIC_VBAN_PORT}
             sess.name           = "${MIC_VBAN_SESS}"
             sess.min-ptime      = 1
@@ -256,39 +316,40 @@ context.modules = [
 EOF
 }
 
-FILTER_VARS='${MIC_HARDWARE_SOURCE} ${MIC_FILTERED_NAME} ${MIC_FILTERED_DESC} ${MIC_FILTERED_CAPTURE_NAME} ${MIC_DF_PLUGIN} ${MIC_DF_ATTEN} ${MIC_LSP_PLUGIN} ${MIC_COMP_LABEL} ${MIC_LIMIT_LABEL} ${MIC_COMP_MODE} ${MIC_COMP_RATIO} ${MIC_COMP_THRESH} ${MIC_COMP_ATTACK} ${MIC_COMP_RELEASE} ${MIC_COMP_MAKEUP} ${MIC_COMP_LOOKAHEAD} ${MIC_LIMIT_THRESH} ${MIC_LIMIT_LOOKAHEAD}'
-RX_VARS='${MIC_VBAN_BIND} ${MIC_VBAN_PORT} ${MIC_VBAN_RX_LATENCY} ${MIC_REMOTE_NAME} ${MIC_REMOTE_DESC} ${MIC_VBAN_SESS}'
-TX_VARS='${MIC_VBAN_DEST} ${MIC_VBAN_PORT} ${MIC_VBAN_SESS} ${MIC_VBAN_TX_LATENCY} ${MIC_VBAN_SINK} ${MIC_REMOTE_DESC}'
-
-write_conf() {
-    need envsubst
-    mkdir -p "$PW_DIR"
-    TMP=$(mktemp)
-    $1 | envsubst "$2" > "$TMP"
-    mv "$TMP" "$3"
-    echo "wrote $3"
-}
-
-# --- status --------------------------------------------------------------
+# --- status / dump / reload ----------------------------------------------
 cmd_status() {
     echo "version  : $MICCTL_VERSION"
     echo "hardware : $MIC_HARDWARE_SOURCE"
-    echo "filtered : $MIC_FILTERED_NAME  ($( [ -f "$FILTER_CONF" ] && echo installed || echo no-conf ))"
-    echo "remote   : $MIC_REMOTE_NAME"
+    echo "filtered : $MIC_FILTERED_NAME  ($( [ -f "$FILTER_CONF" ] && echo conf || echo no-conf ))"
+    echo "remote   : $MIC_REMOTE_NAME    ($( [ -f "$RX_CONF" ] && echo conf || echo no-conf ))"
+    echo "tx sink  : $MIC_VBAN_SINK      ($( [ -f "$TX_CONF" ] && echo conf || echo no-conf ))"
     echo "vban dest: ${MIC_VBAN_DEST:-unset}"
-    echo "rx conf  : $( [ -f "$RX_CONF" ] && echo "$RX_CONF" || echo off )"
-    echo "tx conf  : $( [ -f "$TX_CONF" ] && echo "$TX_CONF" || echo off )"
     echo "default  : $(pactl get-default-source 2>/dev/null || echo '?')"
     pactl list short sources 2>/dev/null | grep -E "$MIC_HARDWARE_SOURCE|$MIC_FILTERED_NAME|$MIC_REMOTE_NAME" || true
-    have_sink "$MIC_VBAN_SINK" && echo "tx sink  : $MIC_VBAN_SINK" || true
-    module_alive "$MON_STATE" && echo "monitor  : module $(cat "$MON_STATE")"
-    module_alive "$TX_STATE" && echo "tx loop  : module $(cat "$TX_STATE")"
+    have_sink "$MIC_VBAN_SINK" && echo "sink     : $MIC_VBAN_SINK" || true
+    echo "monitor  : $(monitor_current)"
+    tx_loop_alive && echo "tx loop  : live"
+    echo "conf.d   : $PW_DIR"
+    if [ -d "$PW_DIR" ]; then
+        ls -1 "$PW_DIR" | sed 's/^/  /'
+    else
+        echo "  (missing)"
+    fi
 }
 
-# --- filter --------------------------------------------------------------
+cmd_dump() {
+    echo "---- $FILTER_CONF"
+    [ -f "$FILTER_CONF" ] && cat "$FILTER_CONF" || echo "(missing)"
+    echo "---- $RX_CONF"
+    [ -f "$RX_CONF" ] && cat "$RX_CONF" || echo "(missing)"
+    echo "---- $TX_CONF"
+    [ -f "$TX_CONF" ] && cat "$TX_CONF" || echo "(missing)"
+}
+
+# --- filter / rx / tx ----------------------------------------------------
 cmd_filter() {
     case "${1:-}" in
-        install)
+        on)
             [ -f "$MIC_DF_PLUGIN" ] || { echo "missing $MIC_DF_PLUGIN" >&2; exit 1; }
             [ -f "$MIC_LSP_PLUGIN" ] || { echo "missing $MIC_LSP_PLUGIN" >&2; exit 1; }
             write_conf filter_template "$FILTER_VARS" "$FILTER_CONF"
@@ -296,77 +357,44 @@ cmd_filter() {
             if wait_source "$MIC_FILTERED_NAME"; then
                 echo "ready $MIC_FILTERED_NAME"
             else
-                echo "filter conf installed but $MIC_FILTERED_NAME did not appear" >&2
-                exit 1
+                echo "$MIC_FILTERED_NAME did not appear" >&2
             fi
             ;;
-        remove)
+        off)
             rm -f "$FILTER_CONF"
             echo "removed $FILTER_CONF"
             reload_pw
             ;;
-        *) echo "micctl filter install|remove" >&2; exit 1 ;;
+        toggle)
+            if [ -f "$FILTER_CONF" ]; then cmd_filter off; else cmd_filter on; fi
+            ;;
+        *) echo "micctl filter on|off|toggle" >&2; exit 1 ;;
     esac
 }
 
-# --- monitor -------------------------------------------------------------
-cmd_monitor() {
-    case "${1:-}" in
-        stop)
-            unload_state "$MON_STATE"
-            echo "monitor stopped"
-            ;;
-        hardware|filtered|remote|"")
-            TARGET=${1:-hardware}
-            if module_alive "$MON_STATE"; then
-                echo "monitor already running (module $(cat "$MON_STATE")). stop first." >&2
-                exit 1
-            fi
-            case "$TARGET" in
-                hardware) MIC=$MIC_HARDWARE_SOURCE ;;
-                filtered) MIC=$MIC_FILTERED_NAME ;;
-                remote)   MIC=$MIC_REMOTE_NAME ;;
-            esac
-            have_source "$MIC" || { echo "source not found: $MIC" >&2; exit 1; }
-            SINK=${SINK:-$(pactl get-default-sink)}
-            if [ "$SINK" = "$MIC_HARDWARE_JACK" ]; then
-                echo "default sink is the NT-USB jack. Set SINK=..." >&2
-                exit 1
-            fi
-            echo "capture : $MIC"
-            echo "playback: $SINK"
-            ID=$(pactl load-module module-loopback \
-                source="$MIC" sink="$SINK" latency_msec=30 \
-                source_dont_move=true sink_dont_move=true)
-            echo "$ID" > "$MON_STATE"
-            echo "monitor module $ID"
-            ;;
-        *) echo "micctl monitor hardware|filtered|remote|stop" >&2; exit 1 ;;
-    esac
-}
-
-# --- vban rx -------------------------------------------------------------
 cmd_rx() {
     case "${1:-}" in
         on)
             write_conf rx_template "$RX_VARS" "$RX_CONF"
             reload_pw
-            echo "rx on ($MIC_REMOTE_NAME appears when a matching VBAN stream arrives)"
+            echo "rx on ($MIC_REMOTE_NAME after matching VBAN packets)"
             ;;
         off)
             rm -f "$RX_CONF"
             echo "removed $RX_CONF"
             reload_pw
             ;;
-        *) echo "micctl rx on|off" >&2; exit 1 ;;
+        toggle)
+            if [ -f "$RX_CONF" ]; then cmd_rx off; else cmd_rx on; fi
+            ;;
+        *) echo "micctl rx on|off|toggle" >&2; exit 1 ;;
     esac
 }
 
-# --- vban tx -------------------------------------------------------------
 start_tx_loop() {
     unload_state "$TX_STATE"
     have_source "$MIC_FILTERED_NAME" || {
-        echo "tx needs $MIC_FILTERED_NAME — run: micctl filter install" >&2
+        echo "tx needs $MIC_FILTERED_NAME — micctl filter on" >&2
         exit 1
     }
     wait_sink "$MIC_VBAN_SINK" || {
@@ -377,7 +405,7 @@ start_tx_loop() {
         source="$MIC_FILTERED_NAME" sink="$MIC_VBAN_SINK" \
         latency_msec=20 source_dont_move=true sink_dont_move=true)
     echo "$ID" > "$TX_STATE"
-    echo "tx loop module $ID  ($MIC_FILTERED_NAME -> $MIC_VBAN_SINK)"
+    echo "tx loop module $ID"
 }
 
 cmd_tx() {
@@ -388,7 +416,12 @@ cmd_tx() {
                 exit 1
             }
             write_conf tx_template "$TX_VARS" "$TX_CONF"
+            [ -f "$RX_CONF" ] && echo "note: $RX_CONF present; reload also enables RX"
+            PREV_SINK=$(pactl get-default-sink 2>/dev/null || true)
             reload_pw
+            if [ -n "$PREV_SINK" ] && [ "$PREV_SINK" != "$MIC_VBAN_SINK" ]; then
+                pactl set-default-sink "$PREV_SINK" 2>/dev/null || true
+            fi
             start_tx_loop
             ;;
         off)
@@ -397,8 +430,165 @@ cmd_tx() {
             echo "removed $TX_CONF"
             reload_pw
             ;;
-        *) echo "micctl tx on|off" >&2; exit 1 ;;
+        toggle)
+            if [ -f "$TX_CONF" ] || tx_loop_alive; then
+                cmd_tx off
+            else
+                cmd_tx on
+            fi
+            ;;
+        *) echo "micctl tx on|off|toggle" >&2; exit 1 ;;
     esac
+}
+
+# --- monitor -------------------------------------------------------------
+monitor_current() {
+    if module_alive "$MON_STATE"; then
+        state_mode "$MON_STATE"
+    else
+        echo off
+    fi
+}
+
+start_monitor() {
+    TARGET=$1
+    case "$TARGET" in
+        hardware) MIC=$MIC_HARDWARE_SOURCE ;;
+        filtered) MIC=$MIC_FILTERED_NAME ;;
+        remote)   MIC=$MIC_REMOTE_NAME ;;
+        *) echo "bad monitor target: $TARGET" >&2; return 1 ;;
+    esac
+    have_source "$MIC" || { echo "source not found: $MIC" >&2; return 1; }
+    SINK=${SINK:-$(pactl get-default-sink)}
+    if [ "$SINK" = "$MIC_HARDWARE_JACK" ] || [ "$SINK" = "$MIC_VBAN_SINK" ]; then
+        echo "refusing sink $SINK (jack or vban). Set SINK to headphones." >&2
+        return 1
+    fi
+    unload_state "$MON_STATE"
+    echo "capture : $MIC"
+    echo "playback: $SINK"
+    ID=$(pactl load-module module-loopback \
+        source="$MIC" sink="$SINK" latency_msec=30 \
+        source_dont_move=true sink_dont_move=true)
+    echo "$ID $TARGET" > "$MON_STATE"
+    echo "monitor $TARGET module $ID"
+}
+
+
+next_monitor_after() {
+    CUR=$1
+    try() {
+        have_source "$2" || return 1
+        start_monitor "$1"
+    }
+    case "$CUR" in
+        off)
+            try hardware "$MIC_HARDWARE_SOURCE" && return
+            try filtered "$MIC_FILTERED_NAME" && return
+            try remote "$MIC_REMOTE_NAME" && return
+            echo "no monitor source available" >&2
+            return 1
+            ;;
+        hardware)
+            try filtered "$MIC_FILTERED_NAME" && return
+            try remote "$MIC_REMOTE_NAME" && return
+            unload_state "$MON_STATE"
+            echo "monitor off"
+            ;;
+        filtered)
+            try remote "$MIC_REMOTE_NAME" && return
+            unload_state "$MON_STATE"
+            echo "monitor off"
+            ;;
+        *)
+            unload_state "$MON_STATE"
+            echo "monitor off"
+            ;;
+    esac
+}
+
+cmd_monitor() {
+    case "${1:-}" in
+        ""|status)
+            echo "monitor : $(monitor_current)"
+            ;;
+        off)
+            unload_state "$MON_STATE"
+            echo "monitor off"
+            ;;
+        hardware|filtered|remote)
+            start_monitor "$1" || exit 1
+            ;;
+        cycle)
+            next_monitor_after "$(monitor_current)" || exit 1
+            ;;
+        *) echo "micctl monitor hardware|filtered|remote|off|cycle" >&2; exit 1 ;;
+    esac
+}
+
+# --- waybar --------------------------------------------------------------
+json_esc() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+cmd_waybar() {
+    set +e
+    WHICH=${1:-}
+    LABEL=?; STATE=off; LIVE=off; TIP=""
+    case "$WHICH" in
+        filter)
+            LABEL=F
+            case "$(node_pulse_state sources "$MIC_FILTERED_NAME")" in
+                running)    STATE=on; LIVE=live ;;
+                suspended)  STATE=on; LIVE=suspended ;;
+                *)
+                    if [ -f "$FILTER_CONF" ]; then STATE=on; LIVE=idle
+                    else STATE=off; LIVE=off
+                    fi
+                    ;;
+            esac
+            TIP="filter $STATE ($LIVE)"
+            ;;
+        rx)
+            LABEL=R
+            case "$(node_pulse_state sources "$MIC_REMOTE_NAME")" in
+                running)    STATE=on; LIVE=live ;;
+                suspended)  STATE=on; LIVE=suspended ;;
+                *)
+                    if [ -f "$RX_CONF" ]; then STATE=on; LIVE=idle
+                    else STATE=off; LIVE=off
+                    fi
+                    ;;
+            esac
+            TIP="rx $STATE ($LIVE)"
+            ;;
+        tx)
+            LABEL=T
+            if tx_loop_alive; then
+                STATE=on; LIVE=live
+            elif [ -f "$TX_CONF" ]; then
+                case "$(node_pulse_state sinks "$MIC_VBAN_SINK")" in
+                    running|suspended) STATE=on; LIVE=suspended ;;
+                    *) STATE=on; LIVE=idle ;;
+                esac
+            else
+                STATE=off; LIVE=off
+            fi
+            TIP="tx $STATE ($LIVE) dest=${MIC_VBAN_DEST:-unset}"
+            ;;
+        monitor)
+            MODE=$(monitor_current)
+            case "$MODE" in
+                hardware) LABEL=D; STATE=on; LIVE=live; TIP="monitor raw hardware" ;;
+                filtered) LABEL=M; STATE=on; LIVE=live; TIP="monitor mic_filtered" ;;
+                remote)   LABEL=N; STATE=on; LIVE=live; TIP="monitor mic_remote" ;;
+                *)        LABEL=M; STATE=off; LIVE=off; TIP="monitor off" ;;
+            esac
+            ;;
+        *) echo "micctl waybar filter|rx|tx|monitor" >&2; exit 1 ;;
+    esac
+    printf '{"text":"%s","alt":"%s","class":"%s","tooltip":"%s"}\n' \
+        "$LABEL" "$STATE" "${STATE}-${LIVE}" "$(json_esc "$TIP")"
 }
 
 # --- main ----------------------------------------------------------------
@@ -406,10 +596,13 @@ cmd=${1:-status}
 arg=${2:-}
 case "$cmd" in
     status)           cmd_status ;;
+    reload)           reload_pw ;;
+    dump)             cmd_dump ;;
     filter)           cmd_filter "$arg" ;;
-    monitor)          cmd_monitor "$arg" ;;
     rx)               cmd_rx "$arg" ;;
     tx)               cmd_tx "$arg" ;;
+    monitor)          cmd_monitor "$arg" ;;
+    waybar)           cmd_waybar "$arg" ;;
     -h|--help|help)   usage ;;
     *) usage; exit 1 ;;
 esac
