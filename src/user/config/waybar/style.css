@@ -27,6 +27,64 @@
 @define-color clr-orange rgba(255, 121, 64, 1);
 @define-color clr-orange-half rgba(255, 121, 64, 0.8);
 
+/* TEMP INGEST */
+#mic {
+	background: @clr-black-half;
+	border-radius: 4px;
+	margin: 2px 0 4px 0;
+	padding: 0 4px 0 8px;
+}
+
+#custom-mic-label {
+	color: @clr-white;
+	padding: 0 8px 0 0;
+	margin: 0;
+	background: transparent;
+}
+
+#custom-mic-m,
+#custom-mic-f,
+#custom-mic-r,
+#custom-mic-t {
+	background: transparent;
+	color: @clr-grey;
+	padding: 0 6px;
+	margin: 2px 1px;
+	border-radius: 3px;
+	border: 2px solid transparent;
+}
+
+#custom-mic-m.on-idle,
+#custom-mic-f.on-idle,
+#custom-mic-r.on-idle,
+#custom-mic-t.on-idle {
+	color: @clr-white;
+	border-color: @clr-white-half;
+}
+
+#custom-mic-m.on-suspended,
+#custom-mic-f.on-suspended,
+#custom-mic-r.on-suspended,
+#custom-mic-t.on-suspended {
+	color: @clr-blue;
+	background-color: @clr-black;
+	border-color: @clr-blue;
+}
+
+#custom-mic-f.on-live,
+#custom-mic-r.on-live,
+#custom-mic-t.on-live {
+	color: @clr-green;
+	background-color: @clr-black;
+	border-color: @clr-green;
+}
+
+#custom-mic-m.on-live {
+	color: @clr-yellow;
+	background-color: @clr-black;
+	border-color: @clr-yellow;
+}
+
 /* Animations & Keyframes */
 @keyframes blink-blue {
 	0% {

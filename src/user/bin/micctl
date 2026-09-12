@@ -9,6 +9,12 @@
 #   - Transmit voice data from local machine to remote desktop
 #     as an usable source there for VoIP or Games.
 #   - Monitor source (raw|filter) usage and activations.
+# 
+# * Required packages:
+#   - systemd, gettext, hdf5
+#   - pipewire, pipewire-pulse, wireplumber
+#   - deep-filter (libdeep_filter_ladspa.so)
+#   - lsp-plugins (lps-plugins-ladspa.so)
 #
 # === CHANGELOG:
 # - version 2 (2026-09-12, tbk): Add Waybar JSON support for easier control and
@@ -537,7 +543,7 @@ cmd_waybar() {
     LABEL=?; STATE=off; LIVE=off; TIP=""
     case "$WHICH" in
         filter)
-            LABEL=F
+            LABEL=FIL
             case "$(node_pulse_state sources "$MIC_FILTERED_NAME")" in
                 running)    STATE=on; LIVE=live ;;
                 suspended)  STATE=on; LIVE=suspended ;;
@@ -550,7 +556,7 @@ cmd_waybar() {
             TIP="filter $STATE ($LIVE)"
             ;;
         rx)
-            LABEL=R
+            LABEL=RX
             case "$(node_pulse_state sources "$MIC_REMOTE_NAME")" in
                 running)    STATE=on; LIVE=live ;;
                 suspended)  STATE=on; LIVE=suspended ;;
@@ -563,7 +569,7 @@ cmd_waybar() {
             TIP="rx $STATE ($LIVE)"
             ;;
         tx)
-            LABEL=T
+            LABEL=TX
             if tx_loop_alive; then
                 STATE=on; LIVE=live
             elif [ -f "$TX_CONF" ]; then
@@ -579,9 +585,9 @@ cmd_waybar() {
         monitor)
             MODE=$(monitor_current)
             case "$MODE" in
-                hardware) LABEL=D; STATE=on; LIVE=live; TIP="monitor raw hardware" ;;
-                filtered) LABEL=M; STATE=on; LIVE=live; TIP="monitor mic_filtered" ;;
-                remote)   LABEL=N; STATE=on; LIVE=live; TIP="monitor mic_remote" ;;
+                hardware) LABEL=RAW; STATE=on; LIVE=live; TIP="monitor raw hardware" ;;
+                filtered) LABEL=FIL; STATE=on; LIVE=live; TIP="monitor mic_filtered" ;;
+                remote)   LABEL=REM; STATE=on; LIVE=live; TIP="monitor mic_remote" ;;
                 *)        LABEL=M; STATE=off; LIVE=off; TIP="monitor off" ;;
             esac
             ;;

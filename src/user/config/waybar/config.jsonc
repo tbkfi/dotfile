@@ -19,6 +19,7 @@
 	],
 	"modules-right": [
 		//"sway/window"
+		"group/mic",
 		"idle_inhibitor",
 		"sway/mode",
 		"sway/workspaces",
@@ -77,6 +78,54 @@
 	},
 
 	// RIGHT-MODULE
+	"group/mic": {
+		"orientation": "horizontal",
+		"modules": [
+			"custom/mic-label",
+			"custom/mic-m",
+			"custom/mic-f",
+			"custom/mic-r",
+			"custom/mic-t"
+		]
+	},
+	"custom/mic-label": {
+		"format": "mic",
+		"tooltip": false,
+		"interval": "once"
+	},
+	"custom/mic-m": {
+		"exec": "/home/user/bin/micctl waybar monitor",
+		"return-type": "json",
+		"format": "{}",
+		"interval": 5,
+		"on-click": "micctl monitor cycle",
+		"tooltip": true
+	},
+	"custom/mic-f": {
+	"exec": "micctl waybar filter",
+	"return-type": "json",
+	"format": "{}",
+	"interval": 5,
+	"on-click": "micctl filter toggle",
+	"tooltip": true
+	},
+	"custom/mic-r": {
+		"exec": "micctl waybar rx",
+		"return-type": "json",
+		"format": "{}",
+		"interval": 5,
+		"on-click": "micctl rx toggle",
+		"tooltip": true
+	},
+	"custom/mic-t": {
+		"exec": "micctl waybar tx",
+		"return-type": "json",
+		"format": "{}",
+		"interval": 5,
+		"on-click": "micctl tx toggle",
+		"tooltip": true
+	},
+
 	"idle_inhibitor": {
 		"format": "☕ [{icon}]",
 		"format-icons": {
@@ -94,7 +143,7 @@
 		}
 	},
 	"network": {
-		"interval": 10,
+		"interval": 5,
 		"format-ethernet": "🌐 {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
 		"format-wifi": "🌐 '{essid}' @ {signaldBm}dBm | {ipaddr} /{cidr} -> {gwaddr} | u:{bandwidthUpBytes} d:{bandwidthDownBytes}",
 		"format-disconnected": "⚠️ LINK DOWN ⚠️"
