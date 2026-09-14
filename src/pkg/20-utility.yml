@@ -74,7 +74,7 @@ gnupg:
     debian: gnupg pinentry pinentry-tty
     fedora: gnupg pinentry pinentry-tty
     gentoo: app-crypt/gnupg app-crypt/pinentry
-    arch: gnupg pinentry
+    arch: gnupg pinentry kwindowsystem kguiaddons # kwindowsystem, kguiaddons: required by pinentry-qt on Arch.
 
 vim:
 # A text editor
