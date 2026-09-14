@@ -1,10 +1,26 @@
+# Firewall
 nftables-store.service
 nftables-load.service
+
+# Network Management Layer
 NetworkManager.service
+
+# Network Time Daemon
 chronyd.service
+
+# Login Manager Daemon
 greetd.service
+
+# Printing facilities
 cups.service
+
+# Bluetooth connectivity
 bluetooth.service
+
+# Smart-card Daemon
+# note: especially for yubikey, validate 'gpg --card-status'
 pcscd.service
 pcscd.socket
+
+# Power Management Daemon
 tlp.service

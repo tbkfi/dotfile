@@ -33,14 +33,18 @@ export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 
 # XCURSOR
-# note: This is for fallback, primary definition in sway config.
+# note: This is a fallback. Primary definition in sway config.
 # path: ~/.local/share/icons/<theme_name>
 #export XCURSOR_PATH="${XDG_DATA_HOME}/icons"
 #export XCURSOR_THEME="Bibata-Modern-Ice"
 #export XCURSOR_SIZE=24
 
-# Dotfile
+# Dependencies
+# note: contains assorted key-value pairs that
+#       certain applications depend on to run or function.
 export PATH_DOTFILE="$HOME/dotfile"
+export GPG_TTY="$(tty)"
+export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
 
 # Git status
 git_branch() {
@@ -60,9 +64,6 @@ git_branch() {
 }
 
 umask 077
-
-export GPG_TTY="$(tty)"
-export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
 
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
