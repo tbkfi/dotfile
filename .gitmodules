@@ -1,12 +1,10 @@
 [submodule "secrets"]
 	path = secrets
 	url = ssh://git@git.lan.tbk.fi:2222/tbk/secrets.git
-	branch = main
 	ignore = all
 	branch = main
 [submodule "walls"]
 	path = walls
 	url = ssh://git@git.lan.tbk.fi:2222/tbk/walls.git
-	branch = main
 	ignore = all
 	branch = main
