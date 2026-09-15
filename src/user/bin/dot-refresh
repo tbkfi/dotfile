@@ -103,10 +103,11 @@ dot_link() {
 		local PATH_SECRETS="$PATH_DOTFILE/secrets"
 		echo -e "\n> secrets"
 
-		if [[ -f "$PATH_SECRETS/gitconfig" ]]; then
+		# TODO: main config to dotfile, secrets remain here.
+		#if [[ -f "$PATH_SECRETS/gitconfig" ]]; then
 		# Gitconfig
-			relink "$PATH_SECRETS/gitconfig" "$HOME/.gitconfig"
-		fi
+		#	relink "$PATH_SECRETS/gitconfig" "$HOME/.gitconfig"
+		#fi
 
 		if [[ -d "$PATH_SECRETS/gnupg" ]]; then
 		# GPG
