@@ -25,13 +25,17 @@
 [fetch]
 	prune = true
 	pruneTags = true
+[log]
+	#showSignature = true
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
 
-# Program
+# Program & Custom
+[alias]
+	lg = log --graph --pretty=format:'%C(yellow)%h%Creset %C(green)[%G?]%Creset %s %C(cyan)(%cr) <%an>%Creset'
 [gpg]
 	program = gpg
 [core]
