@@ -1,0 +1,45 @@
+# General
+[commit]
+	gpgSign = true
+[init]
+	defaultBranch = main
+[branch]
+	sort = -committerdate
+[tag]
+	sort = version:refname
+[push]
+	autoSetupRemote = true
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+	autoSquash = true
+[merge]
+	conflictStyle = zdiff3
+[rerere]
+	enabled = true
+	autoUpdate = true
+[diff]
+	algorithm = histogram
+	renames = copies
+[fetch]
+	prune = true
+	pruneTags = true
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+
+# Program
+[gpg]
+	program = gpg
+[core]
+	excludesfile = ~/.config/git/ignore
+	editor = nvim
+
+# Identity
+[include]
+	path = identity/tbk
+[includeIf "gitdir:~/local/code/vai/"]
+	path = identity/vai
