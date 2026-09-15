@@ -3,5 +3,5 @@
 	email = tuomo.bjork@vaisala.com
 	signingkey = CBEBCD57B4E5F673
 
-[url "git@github-work:"]
+[url "git@github-vai"]
 	insteadOf = git@github.com
