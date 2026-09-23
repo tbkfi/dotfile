@@ -1,0 +1,2256 @@
+#!/bin/bash
+# === Microphone Control
+# Monitor, Filter, Transmit/Receive voice data.
+# Support for Waybar JSON interface.
+#
+# * Target use cases:
+#   - Safe filtered input for VoIP programs.
+#   - Fast monitoring to check voice quality locally.
+#   - Transmit voice data from local machine to remote desktop
+#     as an usable source there for VoIP or Games.
+#   - Monitor source (raw|filter) usage and activations.
+#
+# * Required packages:
+#   - systemd, hdf5
+#   - pipewire, pipewire-pulse, wireplumber
+#   - deep-filter (libdeep_filter_ladspa.so)
+#   - lsp-plugins (lsp-plugins-ladspa.so)
+#   - optional: ffmpeg      -> micctl selftest
+#   - optional: ladspa-sdk  -> micctl doctor port dumps
+#   - optional: pipewire built with libebur128 -> the bounded leveler
+#
+# * IMPORTANT
+#   LADSPA cannot report "that control/port does not exist". A wrong port name
+#   makes a node silently no-op, or makes the whole chain refuse to load.
+#   `micctl doctor` prints the real names; `micctl selftest` proves audio
+#   actually comes out the other end, one stage at a time.
+#
+# === CHANGELOG:
+# - version 5 (2026-09-23, tbk @ Claude Opus 5.5): Config layering, real self-test, adaptive profile.
+#     * First Claude Opus test run to implement the missing backlog feats.
+#		- Implement better versioning and traces for VARs.
+#		- Implement more focused filter chain and test cases.
+#		- General process persistence improvements.
+#     * Configuration is a typed store, not shell variables. One resolution
+#       order for every key: builtin default -> /etc/micctl/config.env ->
+#       $CONF_DIR/config.env -> profile -> environment. `micctl env` shows
+#       where each value came from. Nothing is exported any more, so values
+#       no longer leak into pipewire/pw-loopback children.
+#     * ENV ALWAYS WINS. `profile set|cycle` clear the knobs they own from
+#       the environment first, so switching profiles is never a no-op.
+#       `profile save` does NOT clear, so `MIC_MAKEUP=1.5 micctl profile
+#       save mine` now captures 1.5 (v4 saved the profile's value instead).
+#     * FIX: PROFILE_KNOBS was a newline-separated string matched with a
+#       space-delimited glob, so it never matched and user drop-ins loaded
+#       ZERO keys. It is an associative array now; membership cannot silently
+#       fail. Built-in profiles go through the same parser as drop-ins, so a
+#       bug in one path can no longer hide in the other.
+#     * FIX: `die` inside a waybar path exited the process, so a profile name
+#       with no matching .env emitted no JSON and truncated `waybar all`.
+#       Waybar modules are guarded and always print exactly one object.
+#     * NEW `micctl selftest`: pushes signal through a real chain and measures
+#       the output with ffmpeg. Replaces the v4 "did pipewire stay up" probe,
+#       which could not distinguish a working stage from one that loads and
+#       then passes silence. `--stages` reports the first stage that kills
+#       the signal.
+#     * NEW `micctl render`: prints a conf without touching the system, so
+#       generated output is diffable and testable offline.
+#     * NEW `adaptive` profile: fixed makeup plus an ebur128 leveler whose
+#       gain is clamped to a few dB. Bounded authority, so it cannot
+#       reproduce the floor creep that got the unbounded servo removed.
+#     * NEW MIC_TX_TRANSPORT / MIC_RX_TRANSPORT = vban|rtp|roc. rtp adds
+#       Opus (sess.media=opus); roc adds FEC (fec.code=rs8m|ldpc). Both are
+#       UNTESTED here; vban remains the default.
+#     * Config moved to $XDG_CONFIG_HOME/micctl. The v4 location still works
+#       if the new one is absent; `micctl migrate` copies it over.
+# - version 4 (2026-09-23, tbk): Named, persisted profiles with cycle + waybar.
+# - version 3 (2026-09-21, tbk): Per-subsystem `pipewire -c` systemd units,
+#     new filter chain, mono path, TX as a capture stream, flock, rollback.
+# - version 2 (2026-09-12, tbk): Waybar JSON support.
+# - version 1 (2026-09-11, tbk): First merge of Monitoring/Filtering/RX+TX.
+
+set -euo pipefail
+# note: IFS is left at the default. A few loops rely on splitting on spaces;
+#       every other expansion is quoted.
+
+MICCTL_VERSION=5.0
+SELF=$(readlink -f "$0")
+
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ] \
+   || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -lt 3 ]; }; then
+    echo "micctl: needs bash >= 4.3 (associative arrays with -v)" >&2
+    exit 1
+fi
+
+# =========================================================================
+# Bootstrap paths
+# =========================================================================
+# Resolved before the config store exists, because the store is loaded from
+# them. Everything works with none of these present; they are created on
+# demand.
+
+XDG_CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
+CONF_DIR_NEW="$XDG_CONF/micctl"
+CONF_DIR_V4="$XDG_CONF/pipewire/micctl"
+SYSTEM_CONF="${MICCTL_SYSTEM_CONF:-/etc/micctl/config.env}"
+
+USING_LEGACY_DIR=0
+if [ -n "${MIC_CONF_DIR:-}" ]; then
+    CONF_DIR=$MIC_CONF_DIR
+elif [ -d "$CONF_DIR_NEW" ]; then
+    CONF_DIR=$CONF_DIR_NEW
+elif [ -d "$CONF_DIR_V4" ]; then
+    CONF_DIR=$CONF_DIR_V4
+    USING_LEGACY_DIR=1
+else
+    CONF_DIR=$CONF_DIR_NEW
+fi
+
+GEN_DIR="$CONF_DIR/generated"
+PROFILE_DIR="$CONF_DIR/profiles"
+PROFILE_STATE="$CONF_DIR/profile"
+USER_CONF="$CONF_DIR/config.env"
+
+UNIT_DIR="${MIC_UNIT_DIR:-$XDG_CONF/systemd/user}"
+RUN_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/micctl"
+LOCK_FILE="$RUN_DIR/lock"
+
+FILTER_CONF="$GEN_DIR/filter.conf"
+RX_CONF="$GEN_DIR/vban-rx.conf"
+TX_CONF="$GEN_DIR/vban-tx.conf"
+
+LEGACY_PW_DIR="$XDG_CONF/pipewire/pipewire.conf.d"
+
+U_FILTER=micctl-filter.service
+U_RX=micctl-vban-rx.service
+U_TX=micctl-vban-tx.service
+U_MON=micctl-monitor@
+
+die()  { printf 'micctl: %s\n' "$*" >&2; exit 1; }
+warn() { printf 'micctl: %s\n' "$*" >&2; }
+info() { printf '%s\n' "$*"; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+need() { have "$1" || die "missing command: $1"; }
+
+# =========================================================================
+# Config store
+# =========================================================================
+# v4 kept configuration in ~70 exported shell variables. That made the
+# resolution order implicit, leaked every value into child processes, and
+# made "which layer set this?" unanswerable. One associative array holds the
+# values, a parallel one holds provenance, and a third holds the type so
+# validation is generic instead of a hand-written list.
+
+declare -A CFG=()       # key -> value
+declare -A ORIGIN=()    # key -> default | system | user | profile:NAME | env
+declare -A TYPE=()      # key -> str | num | int | enum:a,b,c
+declare -A HELP=()      # key -> one-line description
+declare -A SECTION=()   # key -> section heading
+declare -a ORDER=()     # declaration order, for stable output
+declare -A ENVCFG=()    # snapshot of MIC_* taken from the environment
+
+CUR_SECTION=""
+sect() { CUR_SECTION=$1; }
+
+# def KEY DEFAULT [TYPE] [HELP]
+def() {
+    local k=$1 v=$2 t=${3:-str} h=${4:-}
+    CFG[$k]=$v; ORIGIN[$k]=default; TYPE[$k]=$t; HELP[$k]=$h
+    SECTION[$k]=$CUR_SECTION
+    ORDER+=("$k")
+}
+
+cfg_set() { CFG[$1]=$2; ORIGIN[$1]=$3; }
+known_key() { [[ -v CFG[$1] ]]; }
+
+# After resolution, values are materialised into plain (unexported) shell
+# variables so the graph builders stay readable. CFG/ORIGIN remain the record
+# of truth for `env`, `save` and provenance.
+materialize_config() {
+    local k
+    for k in "${ORDER[@]}"; do printf -v "$k" '%s' "${CFG[$k]}"; done
+}
+
+# =========================================================================
+# Schema — the one place a tunable is declared
+# =========================================================================
+config_schema() {
+
+sect "names"
+def MIC_HARDWARE_SOURCE "alsa_input.usb-RODE_Microphones_RODE_NT-USB-00.analog-stereo" str "capture device to pull from"
+def MIC_HARDWARE_JACK   "alsa_output.usb-RODE_Microphones_RODE_NT-USB-00.analog-stereo" str "the mic's own jack; refused as a monitor sink"
+def MIC_FILTERED_NAME   "mic_filtered" str "published virtual source"
+def MIC_FILTERED_DESC   "Mic Filtered" str ""
+def MIC_FILTERED_CAPTURE_NAME "" str "defaults to <filtered>_capture"
+def MIC_REMOTE_NAME     "mic_remote"  str "source published by RX"
+def MIC_REMOTE_DESC     "Mic Remote"  str ""
+def MIC_VBAN_SEND_NAME  ""            str "defaults to vban_<remote>_send"
+
+sect "audio format"
+# The NT-USB is one cardioid capsule presented as analog-stereo. Processing
+# two decorrelated copies of the same signal doubles DeepFilter cost for
+# nothing.
+def MIC_RATE     48000 int "graph sample rate; DeepFilter requires 48000"
+def MIC_CHANNELS 1     int "internal channel count"
+def MIC_POSITION MONO  str "layout matching MIC_CHANNELS"
+def MIC_CAPTURE_LATENCY "1024/48000" str "capture buffer; larger avoids DeepFilter underruns"
+
+sect "stage 1: eq"
+def MIC_HPF_FREQ        80    num "high-pass corner; 0 disables. Desk rumble, fan, HVAC"
+def MIC_HPF_Q           0.707 num "Butterworth, so the knee does not ring"
+def MIC_NOTCH_FREQ      0     num "mains hum: 50 or 60; 0 disables"
+def MIC_NOTCH_Q         12    num ""
+def MIC_NOTCH_HARMONICS 2     int "how many multiples of the notch frequency"
+def MIC_HF_SHELF_FREQ   7000  num ""
+def MIC_HF_SHELF_GAIN   0     num "dB; negative tames sibilance. 0 disables"
+def MIC_HF_SHELF_Q      0.707 num ""
+
+sect "stage 2: deepfilter"
+# 48 is the number arrived at by listening on this mic in this room. 100 is
+# unlimited and produces a dead floor plus obvious model artifacts; 22 (stock
+# v3) left too much room in.
+def MIC_DF            on "enum:on,off" "the denoiser itself; off is for selftest and A/B"
+def MIC_DF_PLUGIN     "/usr/lib64/libdeep_filter_ladspa.so" str ""
+def MIC_DF_LABEL      deep_filter_mono str "stereo builds use deep_filter_stereo"
+def MIC_DF_ATTEN      48 num "dB cap on suppression"
+def MIC_DF_IN         "Audio In"  str "verify with micctl doctor"
+def MIC_DF_OUT        "Audio Out" str "verify with micctl doctor"
+def MIC_DF_POSTFILTER ""   str "0-0.05 residual smoother; empty = off"
+
+sect "stage 3: gate"
+# DeepFilter passes breath, which it classifies as voice. The gate is the
+# only thing that removes it. PipeWire's builtin noisegate loads and then
+# stays shut on this build, so auto never selects it: load success is not
+# pass-through success.
+def MIC_GATE           lsp "enum:builtin,lsp,off,auto" "auto resolves to lsp"
+def MIC_LSP_GATE_LABEL "http://lsp-plug.in/plugins/ladspa/gate_mono" str ""
+def MIC_GATE_OPEN      0.022 num "LSP Curve threshold (linear); ~ -33 dB"
+def MIC_GATE_CLOSE     0.013 num "builtin gate only"
+def MIC_GATE_REDUCTION 0.001 num "LSP closed gain. Plugin default is 1, i.e. no gating"
+def MIC_GATE_ATTACK    0.002 num "seconds; converted to ms for LSP"
+def MIC_GATE_HOLD      0.080 num "builtin gate only; gate_mono has no Hold port"
+def MIC_GATE_RELEASE   0.200 num "seconds"
+
+sect "stage 4: fixed makeup"
+# The distance lift. A constant gain after the gate, not a servo: pauses stay
+# silent because the gate already closed. 20 cm to 80 cm is about -12 dB, so
+# +6.8 dB does not equalise those positions; it lifts the far case into a
+# range the downward compressor and the far end's AGC can work with.
+def MIC_MAKEUP 2.2 num "linear multiplier; 1.0 disables the stage"
+
+sect "stage 5: bounded leveler"
+# The unbounded version was removed for floor creep: ebur128's history is a
+# rolling window, so during a long pause all speech ages out, the integrated
+# value collapses, and the gain ramps up with the room. The gate cannot hold
+# that because the servo just reopens it.
+#
+# Bounded authority is the fix: clamp the gain to a couple of dB either way,
+# so the failure mode's magnitude is a configured constant. It trims; it
+# cannot take over from MIC_MAKEUP.
+def MIC_AGC             off "enum:ebur128,lsp,off,auto" "auto probes for ebur128"
+def MIC_AGC_TARGET_LUFS -18.0 num ""
+def MIC_AGC_HISTORY     30.0  num "seconds of integration"
+def MIC_AGC_SOURCE      "Global LUFS" str "Global (R128-gated) or Window LUFS"
+def MIC_AGC_WINDOW      0.0   num "must be > 0 to use Window LUFS"
+def MIC_AGC_GAIN_MIN    0.7   num "~ -3 dB. Keep the span small on purpose"
+def MIC_AGC_GAIN_MAX    1.6   num "~ +4 dB"
+def MIC_LEVEL_MODE      1     num "LSP fallback: 1 = upward"
+def MIC_LEVEL_RATIO     4     num ""
+def MIC_LEVEL_THRESH    0.016 num "~ -36 dBFS"
+def MIC_LEVEL_ATTACK    150   num "ms"
+def MIC_LEVEL_RELEASE   1200  num "ms"
+def MIC_LEVEL_MAKEUP    1.0   num ""
+
+sect "stage 6: peak compressor"
+def MIC_LSP_PLUGIN  "/usr/lib64/ladspa/lsp-plugins-ladspa.so" str ""
+def MIC_COMP_LABEL  "http://lsp-plug.in/plugins/ladspa/compressor_mono" str ""
+def MIC_LIMIT_LABEL "http://lsp-plug.in/plugins/ladspa/limiter_mono" str ""
+def MIC_LSP_IN      "Input"  str "mono LSP port name; verify with micctl doctor"
+def MIC_LSP_OUT     "Output" str "verify with micctl doctor"
+def MIC_COMP         on "enum:on,off" ""
+def MIC_COMP_MODE    0     num "0 = downward"
+def MIC_COMP_RATIO   3.5   num ""
+def MIC_COMP_THRESH  0.126 num "~ -18 dBFS, i.e. loud speech, not every syllable"
+def MIC_COMP_ATTACK  8     num "ms; faster is safer on plosives, duller on consonants"
+def MIC_COMP_RELEASE 150   num "ms"
+def MIC_COMP_MAKEUP  1.0   num "do not use this for distance"
+def MIC_COMP_LOOKAHEAD 5   num "ms"
+def MIC_COMP_KNEE    ""    str "optional; verify the port name first"
+
+sect "stage 7: de-esser (opt-in)"
+# A second LSP compressor keyed on a high-passed internal sidechain. Off by
+# default: the sidechain port names vary between LSP versions and a wrong one
+# refuses the whole chain. MIC_HF_SHELF_GAIN is the zero-risk alternative.
+def MIC_DEESS         off "enum:on,off" ""
+def MIC_DEESS_FREQ    6500 num ""
+def MIC_DEESS_RATIO   4    num ""
+def MIC_DEESS_THRESH  0.1  num ""
+def MIC_DEESS_ATTACK  1    num "ms"
+def MIC_DEESS_RELEASE 40   num "ms"
+def MIC_DEESS_SC_LOWCUT_ON   "Sidechain low-cut" str ""
+def MIC_DEESS_SC_LOWCUT_FREQ "Sidechain low-cut frequency" str ""
+
+sect "stage 8/9: limiter and backstop"
+# The limiter stops instantaneous peaks. What bounds SUSTAINED level is the
+# leveler target plus the compressor ratio above threshold. The clamp is a
+# free can't-happen ceiling that should never engage.
+def MIC_LIMIT           on "enum:on,off" ""
+def MIC_LIMIT_THRESH    0.841 num "~ -1.5 dBFS"
+def MIC_LIMIT_LOOKAHEAD 5     num "ms"
+def MIC_LIMIT_OVERSAMPLING "" str "optional; verify the port name first"
+def MIC_CLAMP           on "enum:on,off" ""
+def MIC_CLAMP_MAX       0.98 num ""
+
+sect "network transport"
+# VBAN is unauthenticated, unencrypted UDP and 0.0.0.0 listens on every
+# interface, VPN and public ones included. Bind to the LAN address and
+# firewall the port.
+#
+# rtp: PipeWire's RTP modules, sess.media = audio|opus. Opus reduces
+#      bandwidth but exposes NO bitrate, FEC or DTX control, so it does not
+#      buy packet-loss resilience.
+# roc: roc-toolkit, fec.code = rs8m|ldpc. Real FEC on a repair port. This is
+#      the option that helps over Wi-Fi.
+# Both are UNTESTED in this script. vban is the default and the proven path.
+def MIC_TX_TRANSPORT vban "enum:vban,rtp,roc" ""
+def MIC_RX_TRANSPORT vban "enum:vban,rtp,roc" ""
+def MIC_VBAN_DEST    "192.168.10.14" str ""
+def MIC_VBAN_BIND    "0.0.0.0" str "prefer your LAN or wireguard address"
+def MIC_VBAN_PORT    6980 int ""
+def MIC_VBAN_SESS    ""   str "defaults to MIC_REMOTE_NAME"
+def MIC_VBAN_SESS_MATCH "" str "RX matches this exactly; defaults to MIC_VBAN_SESS"
+def MIC_VBAN_RX_LATENCY 40 num "ms"
+def MIC_VBAN_TX_LATENCY 10 num "ms"
+def MIC_VBAN_MIN_PTIME  1  num "ms"
+def MIC_VBAN_CHANNELS   "" int "defaults to MIC_CHANNELS; both ends must agree"
+def MIC_VBAN_POSITION   "" str "defaults to MIC_POSITION"
+def MIC_RTP_MEDIA    audio "enum:audio,opus" "opus has no bitrate control"
+def MIC_RTP_MTU      1280 int ""
+def MIC_RTP_TTL      1    int ""
+def MIC_ROC_FEC      rs8m "enum:disable,rs8m,ldpc" ""
+def MIC_ROC_SOURCE_PORT  10001 int ""
+def MIC_ROC_REPAIR_PORT  10002 int ""
+def MIC_ROC_CONTROL_PORT 10003 int ""
+def MIC_ROC_LATENCY  200 num "ms; FEC needs a jitter buffer to work with"
+
+sect "monitor"
+def MIC_MON_LATENCY 15 int "ms; 30 is too slack to judge plosives"
+def MIC_MON_SINK    "" str "empty = current default sink"
+
+sect "plumbing"
+# Resolved before the store exists (the store is loaded from them); declared
+# here so they show up in `env` and do not trip the unknown-variable warning.
+def MIC_CONF_DIR "$CONF_DIR" str "config directory; see micctl migrate"
+def MIC_UNIT_DIR "$UNIT_DIR" str "where generated systemd user units go"
+def MIC_WAIT_TRIES    40  int ""
+def MIC_WAIT_SLEEP    0.2 num "seconds"
+def MIC_WAYBAR_SIGNAL ""  str "N -> pkill -RTMIN+N waybar after any change"
+def MIC_PROFILE       ""  str "one-shot profile override"
+def MIC_SELFTEST_INPUT "" str "a real speech wav for the full-chain selftest"
+
+}
+
+# =========================================================================
+# Profiles
+# =========================================================================
+# Built-ins and drop-ins go through the SAME parser. In v4 built-ins were
+# functions assigning variables while drop-ins were parsed text, and only the
+# text path was broken — which is exactly why the breakage went unnoticed.
+
+declare -A PROFILE_KNOBS=()
+declare -a PROFILE_KNOB_ORDER=(
+    MIC_HPF_FREQ
+    MIC_HF_SHELF_GAIN
+    MIC_DF_POSTFILTER
+    MIC_MAKEUP
+    MIC_AGC
+    MIC_AGC_GAIN_MIN
+    MIC_AGC_GAIN_MAX
+    MIC_COMP_RATIO
+    MIC_COMP_THRESH
+    MIC_COMP_ATTACK
+    MIC_LIMIT_THRESH
+)
+init_profile_knobs() {
+    local k
+    for k in "${PROFILE_KNOB_ORDER[@]}"; do PROFILE_KNOBS[$k]=1; done
+}
+
+profile_is_builtin() {
+    case "$1" in default|close|enhanced|adaptive) return 0 ;; *) return 1 ;; esac
+}
+
+# Every built-in states every knob, so a built-in can never inherit a stale
+# value from whichever profile was applied before it.
+profile_builtin_body() {
+    case "$1" in
+    default) cat <<'EOF'
+MIC_HPF_FREQ=80
+MIC_HF_SHELF_GAIN=0
+MIC_DF_POSTFILTER=
+MIC_MAKEUP=2.2
+MIC_AGC=off
+MIC_AGC_GAIN_MIN=0.7
+MIC_AGC_GAIN_MAX=1.6
+MIC_COMP_RATIO=3.5
+MIC_COMP_THRESH=0.126
+MIC_COMP_ATTACK=8
+MIC_LIMIT_THRESH=0.841
+EOF
+    ;;
+    close) cat <<'EOF'
+MIC_HPF_FREQ=120
+MIC_HF_SHELF_GAIN=-2
+MIC_DF_POSTFILTER=
+MIC_MAKEUP=1.0
+MIC_AGC=off
+MIC_AGC_GAIN_MIN=0.7
+MIC_AGC_GAIN_MAX=1.6
+MIC_COMP_RATIO=5
+MIC_COMP_THRESH=0.089
+MIC_COMP_ATTACK=8
+MIC_LIMIT_THRESH=0.71
+EOF
+    ;;
+    enhanced) cat <<'EOF'
+MIC_HPF_FREQ=80
+MIC_HF_SHELF_GAIN=-1
+MIC_DF_POSTFILTER=0.02
+MIC_MAKEUP=2.2
+MIC_AGC=off
+MIC_AGC_GAIN_MIN=0.7
+MIC_AGC_GAIN_MAX=1.6
+MIC_COMP_RATIO=2.5
+MIC_COMP_THRESH=0.126
+MIC_COMP_ATTACK=15
+MIC_LIMIT_THRESH=0.71
+EOF
+    ;;
+    adaptive) cat <<'EOF'
+MIC_HPF_FREQ=80
+MIC_HF_SHELF_GAIN=-1
+MIC_DF_POSTFILTER=0.02
+MIC_MAKEUP=2.2
+MIC_AGC=ebur128
+MIC_AGC_GAIN_MIN=0.7
+MIC_AGC_GAIN_MAX=1.6
+MIC_COMP_RATIO=2.5
+MIC_COMP_THRESH=0.126
+MIC_COMP_ATTACK=15
+MIC_LIMIT_THRESH=0.71
+EOF
+    ;;
+    esac
+}
+
+profile_file() { printf '%s/%s.env\n' "$PROFILE_DIR" "$1"; }
+
+profile_exists() {
+    profile_is_builtin "$1" && return 0
+    [ -f "$(profile_file "$1")" ]
+}
+
+profile_persisted() {
+    local n=""
+    if [ -f "$PROFILE_STATE" ]; then
+        n=$(tr -d ' \t\r\n' < "$PROFILE_STATE" 2>/dev/null) || n=""
+    fi
+    [ -n "$n" ] || n=default
+    printf '%s\n' "$n"
+}
+
+profile_current() {
+    local n=${ENVCFG[MIC_PROFILE]:-}
+    [ -n "$n" ] || n=$(profile_persisted)
+    printf '%s\n' "$n"
+}
+
+profile_write() {
+    mkdir -p "$CONF_DIR"
+    local tmp
+    tmp=$(mktemp -p "$CONF_DIR" ".profile.XXXXXX")
+    printf '%s\n' "$1" > "$tmp"
+    mv "$tmp" "$PROFILE_STATE"
+}
+
+profile_names() {
+    printf '%s\n' default close enhanced adaptive
+    local f n
+    [ -d "$PROFILE_DIR" ] || return 0
+    for f in "$PROFILE_DIR"/*.env; do
+        [ -f "$f" ] || continue
+        n=$(basename "$f" .env)
+        profile_is_builtin "$n" && continue
+        printf '%s\n' "$n"
+    done
+}
+
+profile_short() {
+    case "$1" in
+        default)  echo FAR ;;
+        close)    echo CLS ;;
+        enhanced) echo ENH ;;
+        adaptive) echo ADP ;;
+        *) printf '%s\n' "$1" | awk '{ s=toupper($0); if (length(s)>4) s=substr(s,1,4); print s }' ;;
+    esac
+}
+
+# =========================================================================
+# Config resolution
+# =========================================================================
+snapshot_env() {
+    local kv k v
+    while IFS= read -r -d '' kv; do
+        k=${kv%%=*}
+        v=${kv#*=}
+        case "$k" in MIC_*) ENVCFG[$k]=$v ;; esac
+    done < <(env -0)
+}
+
+# load KEY=VALUE text into the store.
+# filter: "" = any known key, "profile" = profile knobs only.
+load_kv() {
+    local origin=$1 filter=$2 src=$3 line key val
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in ''|\#*|[!A-Za-z_]*) continue ;; esac
+        case "$line" in *=*) ;; *) continue ;; esac
+        key=${line%%=*}
+        val=${line#*=}
+        key=${key%"${key##*[![:space:]]}"}
+        val=${val#"${val%%[![:space:]]*}"}
+        case "$val" in
+            \"*\") val=${val#\"}; val=${val%\"} ;;
+            \'*\') val=${val#\'}; val=${val%\'} ;;
+        esac
+        if ! known_key "$key"; then
+            warn "$src: unknown key '$key' (ignored)"
+            continue
+        fi
+        if [ "$filter" = profile ] && ! [[ -v PROFILE_KNOBS[$key] ]]; then
+            warn "$src: '$key' is not a profile knob (ignored)"
+            continue
+        fi
+        cfg_set "$key" "$val" "$origin"
+    done
+}
+
+load_file() {
+    local origin=$1 filter=$2 path=$3
+    [ -f "$path" ] || return 0
+    load_kv "$origin" "$filter" "$path" < "$path"
+}
+
+apply_profile() {
+    local name=$1 f
+    if profile_is_builtin "$name"; then
+        load_kv "profile:$name" profile "builtin:$name" < <(profile_builtin_body "$name")
+        return 0
+    fi
+    f=$(profile_file "$name")
+    [ -f "$f" ] || return 1
+    # A drop-in states only what it overrides, so start from the built-in
+    # default and overlay.
+    load_kv "profile:default" profile "builtin:default" < <(profile_builtin_body default)
+    load_kv "profile:$name" profile "$f" < "$f"
+    return 0
+}
+
+# ENV ALWAYS WINS. skip_profile_knobs is set only by `profile set|cycle|save`,
+# which must be able to move a knob the environment also names, or a stray
+# MIC_MAKEUP in the session environment would make cycling a silent no-op.
+apply_env() {
+    local skip=${1:-0} k
+    for k in "${!ENVCFG[@]}"; do
+        if ! known_key "$k"; then
+            warn "unknown MIC_* variable in environment: $k"
+            continue
+        fi
+        if [ "$skip" = 1 ] && [[ -v PROFILE_KNOBS[$k] ]]; then continue; fi
+        cfg_set "$k" "${ENVCFG[$k]}" env
+    done
+}
+
+# Keys whose default is "whatever this other key ended up being".
+derive_defaults() {
+    [ -n "${CFG[MIC_FILTERED_CAPTURE_NAME]}" ] || \
+        cfg_set MIC_FILTERED_CAPTURE_NAME "${CFG[MIC_FILTERED_NAME]}_capture" "${ORIGIN[MIC_FILTERED_CAPTURE_NAME]}"
+    [ -n "${CFG[MIC_VBAN_SEND_NAME]}" ] || \
+        cfg_set MIC_VBAN_SEND_NAME "vban_${CFG[MIC_REMOTE_NAME]}_send" "${ORIGIN[MIC_VBAN_SEND_NAME]}"
+    [ -n "${CFG[MIC_VBAN_SESS]}" ] || \
+        cfg_set MIC_VBAN_SESS "${CFG[MIC_REMOTE_NAME]}" "${ORIGIN[MIC_VBAN_SESS]}"
+    [ -n "${CFG[MIC_VBAN_SESS_MATCH]}" ] || \
+        cfg_set MIC_VBAN_SESS_MATCH "${CFG[MIC_VBAN_SESS]}" "${ORIGIN[MIC_VBAN_SESS_MATCH]}"
+    [ -n "${CFG[MIC_VBAN_CHANNELS]}" ] || \
+        cfg_set MIC_VBAN_CHANNELS "${CFG[MIC_CHANNELS]}" "${ORIGIN[MIC_VBAN_CHANNELS]}"
+    [ -n "${CFG[MIC_VBAN_POSITION]}" ] || \
+        cfg_set MIC_VBAN_POSITION "${CFG[MIC_POSITION]}" "${ORIGIN[MIC_VBAN_POSITION]}"
+    # SINK= is honoured for back-compat with the v2 monitor interface
+    [ -n "${CFG[MIC_MON_SINK]}" ] || \
+        cfg_set MIC_MON_SINK "${SINK:-}" "${ORIGIN[MIC_MON_SINK]}"
+}
+
+PROFILE_ACTIVE=default
+PROFILE_MISSING=0
+
+# resolve_config [profile] [skip_env_for_profile_knobs]
+resolve_config() {
+    local want=${1:-} skip=${2:-0}
+    CFG=(); ORIGIN=(); TYPE=(); HELP=(); SECTION=(); ORDER=()
+    config_schema
+    load_file system "" "$SYSTEM_CONF"
+    load_file user   "" "$USER_CONF"
+
+    [ -n "$want" ] || want=$(profile_current)
+    PROFILE_MISSING=0
+    if ! apply_profile "$want"; then
+        PROFILE_MISSING=1
+        warn "profile '$want' not found; falling back to default"
+        apply_profile default
+    fi
+    PROFILE_ACTIVE=$want
+
+    apply_env "$skip"
+    derive_defaults
+    materialize_config
+}
+
+# Which profile knobs the environment is currently shadowing. Under
+# "env always wins" this is the confusing case, so it gets said out loud.
+shadowed_knobs() {
+    local k out=""
+    for k in "${PROFILE_KNOB_ORDER[@]}"; do
+        [ "${ORIGIN[$k]}" = env ] && out="$out $k"
+    done
+    printf '%s' "${out# }"
+}
+
+# =========================================================================
+# Validation — generic, driven by TYPE
+# =========================================================================
+is_num() { [[ $1 =~ ^-?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][-+]?[0-9]+)?$ ]]; }
+is_int() { [[ $1 =~ ^-?[0-9]+$ ]]; }
+
+validate_config() {
+    local k t v bad=0
+    for k in "${ORDER[@]}"; do
+        t=${TYPE[$k]}; v=${CFG[$k]}
+        [ -n "$v" ] || continue          # empty always means "unset / omit"
+        case "$t" in
+            num) is_num "$v" || { warn "$k must be numeric, got '$v' (from ${ORIGIN[$k]})"; bad=1; } ;;
+            int) is_int "$v" || { warn "$k must be a whole number, got '$v' (from ${ORIGIN[$k]})"; bad=1; } ;;
+            enum:*)
+                case ",${t#enum:}," in
+                    *",$v,"*) ;;
+                    *) warn "$k must be one of ${t#enum:}, got '$v' (from ${ORIGIN[$k]})"; bad=1 ;;
+                esac
+                ;;
+        esac
+    done
+    [ "$bad" = 0 ] || die "invalid configuration"
+}
+
+spa_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+# =========================================================================
+# System state
+# =========================================================================
+pulse_up()      { pactl info >/dev/null 2>&1; }
+require_pulse() { pulse_up || die "cannot reach the pulse compatibility layer (pipewire-pulse down?)"; }
+
+short_line() {
+    pactl list short "$1" 2>/dev/null | awk -v n="$2" '$2 == n { print; exit }' || true
+}
+have_source() { [ -n "$(short_line sources "$1")" ]; }
+have_sink()   { [ -n "$(short_line sinks   "$1")" ]; }
+
+node_pulse_state() {
+    local line
+    line=$(short_line "$1" "$2")
+    [ -n "$line" ] || { echo missing; return 0; }
+    case "$(printf '%s' "$line" | awk '{print $NF}')" in
+        RUNNING)   echo running ;;
+        IDLE)      echo idle ;;
+        SUSPENDED) echo suspended ;;
+        *)         echo suspended ;;
+    esac
+}
+
+wait_node() {
+    local kind=$1 name=$2 i=0
+    while [ "$i" -lt "$MIC_WAIT_TRIES" ]; do
+        case "$kind" in
+            source) have_source "$name" && return 0 ;;
+            sink)   have_sink   "$name" && return 0 ;;
+        esac
+        i=$((i + 1)); sleep "$MIC_WAIT_SLEEP"
+    done
+    return 1
+}
+
+sc() { systemctl --user "$@"; }
+unit_active() { sc is-active --quiet "$1"; }
+unit_exists() { [ -f "$UNIT_DIR/$1" ]; }
+
+write_unit() {
+    local unit=$1 desc=$2 conf=$3 tmp
+    mkdir -p "$UNIT_DIR"
+    tmp=$(mktemp -p "$UNIT_DIR" ".${unit}.XXXXXX")
+    cat > "$tmp" <<EOF
+# generated by micctl $MICCTL_VERSION — do not edit, regenerated on every 'on'
+[Unit]
+Description=$desc
+After=pipewire.service
+BindsTo=pipewire.service
+
+[Service]
+Type=simple
+ExecStart=$(command -v pipewire) -c $conf
+Restart=on-failure
+RestartSec=1
+Slice=session.slice
+
+[Install]
+WantedBy=pipewire.service
+EOF
+    mv "$tmp" "$UNIT_DIR/$unit"
+    sc daemon-reload
+}
+
+write_monitor_unit() {
+    local tmp
+    mkdir -p "$UNIT_DIR"
+    tmp=$(mktemp -p "$UNIT_DIR" ".${U_MON}.XXXXXX")
+    # The instance name IS the target, so systemd holds the whole monitor
+    # state and there is no side file to go stale.
+    cat > "$tmp" <<EOF
+# generated by micctl $MICCTL_VERSION — do not edit
+[Unit]
+Description=micctl monitor (%i)
+After=pipewire.service
+BindsTo=pipewire.service
+
+[Service]
+Type=simple
+ExecStart=$SELF monitor-exec %i
+Restart=no
+Slice=session.slice
+EOF
+    mv "$tmp" "$UNIT_DIR/${U_MON}.service"
+    sc daemon-reload
+}
+
+write_conf() {
+    local target=$1 body=$2 dir tmp
+    dir=$(dirname "$target")
+    mkdir -p "$dir"
+    tmp=$(mktemp -p "$dir" ".$(basename "$target").XXXXXX")
+    printf '%s\n' "$body" > "$tmp"
+    if [ -f "$target" ]; then cp -f "$target" "$target.bak"; else rm -f "$target.bak"; fi
+    mv "$tmp" "$target"
+    info "wrote $target"
+}
+
+rollback_conf() {
+    local target=$1
+    if [ -f "$target.bak" ]; then
+        mv -f "$target.bak" "$target"; warn "rolled back $target"
+    else
+        rm -f "$target"; warn "removed broken $target"
+    fi
+}
+
+journal_hint() { warn "look at: journalctl --user -u $1 -n 40 --no-pager"; }
+
+# A standalone `pipewire -c` is a CLIENT, not the daemon. Without these three
+# the feature module fails with ENOTSUP and the process exits 161. Required
+# in every generated conf, including the selftest ones.
+client_modules() {
+    cat <<'EOF'
+    { name = libpipewire-module-rt
+        args = { nice.level = -11 rt.prio = 88 }
+        flags = [ ifexists nofail ]
+    }
+    { name = libpipewire-module-protocol-native }
+    { name = libpipewire-module-client-node }
+    { name = libpipewire-module-adapter }
+EOF
+}
+
+# =========================================================================
+# Graph builder
+# =========================================================================
+G_NODES=""; G_LINKS=""; G_IN=""; G_CUR=""
+
+g_reset() { G_NODES=""; G_LINKS=""; G_IN=""; G_CUR=""; }
+g_node()  { G_NODES="${G_NODES}$1"$'\n'; }
+g_link()  { G_LINKS="${G_LINKS}                    { output = \"$1\" input = \"$2\" }"$'\n'; }
+
+g_stage() {
+    g_node "$1"
+    if [ -z "$G_IN" ]; then G_IN=$2; else g_link "$G_CUR" "$2"; fi
+    G_CUR=$3
+}
+
+# One call per node. Separate command substitutions would each have their
+# trailing newline stripped and run together on a single line.
+ctl_block() {
+    local out="" name val
+    while [ "$#" -gt 1 ]; do
+        name=$1; val=$2; shift 2
+        [ -n "$val" ] && out="${out}                            \"$name\" = $val"$'\n'
+    done
+    printf '%s' "$out"
+}
+
+stage_eq() {
+    local filters="" n h
+    if [ "$MIC_HPF_FREQ" != 0 ]; then
+        filters="${filters}                                { type = bq_highpass freq = $MIC_HPF_FREQ q = $MIC_HPF_Q gain = 0 }"$'\n'
+    fi
+    if [ "$MIC_NOTCH_FREQ" != 0 ]; then
+        n=1
+        while [ "$n" -le "$MIC_NOTCH_HARMONICS" ]; do
+            h=$(awk -v f="$MIC_NOTCH_FREQ" -v n="$n" 'BEGIN{printf "%.0f", f*n}')
+            filters="${filters}                                { type = bq_notch freq = $h q = $MIC_NOTCH_Q gain = 0 }"$'\n'
+            n=$((n + 1))
+        done
+    fi
+    if [ "$MIC_HF_SHELF_GAIN" != 0 ]; then
+        filters="${filters}                                { type = bq_highshelf freq = $MIC_HF_SHELF_FREQ q = $MIC_HF_SHELF_Q gain = $MIC_HF_SHELF_GAIN }"$'\n'
+    fi
+    [ -n "$filters" ] || return 0
+    g_stage "                    {
+                        type  = builtin
+                        name  = eq
+                        label = param_eq
+                        config = {
+                            filters = [
+$filters                            ]
+                        }
+                    }" "eq:In 1" "eq:Out 1"
+}
+
+stage_df() {
+    [ "$MIC_DF" = on ] || return 0
+    g_stage "                    {
+                        type   = ladspa
+                        name   = df
+                        plugin = $MIC_DF_PLUGIN
+                        label  = $MIC_DF_LABEL
+                        control = {
+$(ctl_block \
+    "Attenuation Limit (dB)" "$MIC_DF_ATTEN" \
+    "Post Filter Beta"       "$MIC_DF_POSTFILTER")
+                        }
+                    }" "df:$MIC_DF_IN" "df:$MIC_DF_OUT"
+}
+
+stage_gate() {
+    case "$1" in
+        builtin)
+            g_stage "                    {
+                        type   = builtin
+                        name   = gate
+                        label  = noisegate
+                        control = {
+$(ctl_block \
+    "Open threshold"  "$MIC_GATE_OPEN" \
+    "Close threshold" "$MIC_GATE_CLOSE" \
+    "Attack (s)"      "$MIC_GATE_ATTACK" \
+    "Hold (s)"        "$MIC_GATE_HOLD" \
+    "Release (s)"     "$MIC_GATE_RELEASE")
+                        }
+                    }" "gate:In" "gate:Out"
+            ;;
+        lsp)
+            # gate_mono has one curve, no Hold port, and takes milliseconds.
+            # Reduction MUST be wired: the plugin default is 1, i.e. 0 dB, so
+            # an unwired LSP gate is a pass-through.
+            local atk rel
+            atk=$(awk -v t="$MIC_GATE_ATTACK" 'BEGIN{printf "%.3f", t*1000}')
+            rel=$(awk -v t="$MIC_GATE_RELEASE" 'BEGIN{printf "%.3f", t*1000}')
+            g_stage "                    {
+                        type   = ladspa
+                        name   = gate
+                        plugin = $MIC_LSP_PLUGIN
+                        label  = \"$MIC_LSP_GATE_LABEL\"
+                        control = {
+$(ctl_block \
+    "Curve threshold (G)" "$MIC_GATE_OPEN" \
+    "Reduction (G)"       "$MIC_GATE_REDUCTION" \
+    "Attack (ms)"         "$atk" \
+    "Release (ms)"        "$rel" \
+    "Dry gain (G)"        0 \
+    "Wet gain (G)"        1)
+                        }
+                    }" "gate:$MIC_LSP_IN" "gate:$MIC_LSP_OUT"
+            ;;
+    esac
+}
+
+stage_makeup() {
+    case "$MIC_MAKEUP" in ''|1|1.0|1.00) return 0 ;; esac
+    g_stage "                    {
+                        type   = builtin
+                        name   = makeup
+                        label  = linear
+                        control = {
+                            \"Mult\" = $MIC_MAKEUP
+                            \"Add\"  = 0.0
+                        }
+                    }" "makeup:In" "makeup:Out"
+}
+
+stage_agc() {
+    case "$1" in
+        ebur128)
+            local window=""
+            if [ "$MIC_AGC_WINDOW" != "0.0" ] && [ "$MIC_AGC_WINDOW" != 0 ]; then
+                window="                            max-window = $MIC_AGC_WINDOW"$'\n'
+            fi
+            # ebur128 passes audio through untouched and exposes the
+            # measurement on control ports: feed-forward, nothing to
+            # oscillate. The clamp bounds the servo's authority.
+            g_stage "                    {
+                        type   = ebur128
+                        name   = meter
+                        label  = ebur128
+                        config = {
+                            max-history = $MIC_AGC_HISTORY
+$window                        }
+                    }" "meter:In DUAL MONO" "meter:Out DUAL MONO"
+            g_node "                    {
+                        type   = ebur128
+                        name   = l2g
+                        label  = lufs2gain
+                        control = { \"Target LUFS\" = $MIC_AGC_TARGET_LUFS }
+                    }"
+            g_node "                    {
+                        type   = builtin
+                        name   = gclamp
+                        label  = clamp
+                        control = {
+                            \"Min\" = $MIC_AGC_GAIN_MIN
+                            \"Max\" = $MIC_AGC_GAIN_MAX
+                        }
+                    }"
+            g_stage "                    {
+                        type   = builtin
+                        name   = agc
+                        label  = linear
+                        control = { \"Add\" = 0.0 }
+                    }" "agc:In" "agc:Out"
+            g_link "meter:$MIC_AGC_SOURCE" "l2g:LUFS"
+            g_link "l2g:Gain" "gclamp:Control"
+            g_link "gclamp:Notify" "agc:Mult"
+            ;;
+        lsp)
+            g_stage "                    {
+                        type   = ladspa
+                        name   = level
+                        plugin = $MIC_LSP_PLUGIN
+                        label  = \"$MIC_COMP_LABEL\"
+                        control = {
+$(ctl_block \
+    "Compression mode"     "$MIC_LEVEL_MODE" \
+    "Ratio"                "$MIC_LEVEL_RATIO" \
+    "Attack threshold (G)" "$MIC_LEVEL_THRESH" \
+    "Attack time (ms)"     "$MIC_LEVEL_ATTACK" \
+    "Release time (ms)"    "$MIC_LEVEL_RELEASE" \
+    "Makeup gain (G)"      "$MIC_LEVEL_MAKEUP")
+                        }
+                    }" "level:$MIC_LSP_IN" "level:$MIC_LSP_OUT"
+            ;;
+    esac
+}
+
+stage_comp() {
+    [ "$MIC_COMP" = on ] || return 0
+    g_stage "                    {
+                        type   = ladspa
+                        name   = comp
+                        plugin = $MIC_LSP_PLUGIN
+                        label  = \"$MIC_COMP_LABEL\"
+                        control = {
+$(ctl_block \
+    "Compression mode"         "$MIC_COMP_MODE" \
+    "Ratio"                    "$MIC_COMP_RATIO" \
+    "Attack threshold (G)"     "$MIC_COMP_THRESH" \
+    "Attack time (ms)"         "$MIC_COMP_ATTACK" \
+    "Release time (ms)"        "$MIC_COMP_RELEASE" \
+    "Makeup gain (G)"          "$MIC_COMP_MAKEUP" \
+    "Sidechain lookahead (ms)" "$MIC_COMP_LOOKAHEAD" \
+    "Knee (G)"                 "$MIC_COMP_KNEE")
+                        }
+                    }" "comp:$MIC_LSP_IN" "comp:$MIC_LSP_OUT"
+}
+
+stage_deess() {
+    [ "$MIC_DEESS" = on ] || return 0
+    g_stage "                    {
+                        type   = ladspa
+                        name   = dees
+                        plugin = $MIC_LSP_PLUGIN
+                        label  = \"$MIC_COMP_LABEL\"
+                        control = {
+$(ctl_block \
+    "Compression mode"          0 \
+    "Ratio"                     "$MIC_DEESS_RATIO" \
+    "Attack threshold (G)"      "$MIC_DEESS_THRESH" \
+    "Attack time (ms)"          "$MIC_DEESS_ATTACK" \
+    "Release time (ms)"         "$MIC_DEESS_RELEASE" \
+    "$MIC_DEESS_SC_LOWCUT_ON"   1 \
+    "$MIC_DEESS_SC_LOWCUT_FREQ" "$MIC_DEESS_FREQ")
+                        }
+                    }" "dees:$MIC_LSP_IN" "dees:$MIC_LSP_OUT"
+}
+
+stage_limit() {
+    [ "$MIC_LIMIT" = on ] || return 0
+    g_stage "                    {
+                        type   = ladspa
+                        name   = lim
+                        plugin = $MIC_LSP_PLUGIN
+                        label  = \"$MIC_LIMIT_LABEL\"
+                        control = {
+$(ctl_block \
+    "Threshold (G)"  "$MIC_LIMIT_THRESH" \
+    "Lookahead (ms)" "$MIC_LIMIT_LOOKAHEAD" \
+    "Oversampling"   "$MIC_LIMIT_OVERSAMPLING")
+                        }
+                    }" "lim:$MIC_LSP_IN" "lim:$MIC_LSP_OUT"
+}
+
+stage_clamp() {
+    [ "$MIC_CLAMP" = on ] || return 0
+    local min
+    min=$(awk -v m="$MIC_CLAMP_MAX" 'BEGIN{printf "%s", -m}')
+    g_stage "                    {
+                        type   = builtin
+                        name   = ceil
+                        label  = clamp
+                        control = {
+                            \"Min\" = $min
+                            \"Max\" = $MIC_CLAMP_MAX
+                        }
+                    }" "ceil:In" "ceil:Out"
+}
+
+resolve_agc() {
+    case "$MIC_AGC" in
+        ebur128|lsp|off) printf '%s' "$MIC_AGC" ;;
+        auto) if have_ebur128; then printf ebur128; else printf lsp; fi ;;
+    esac
+}
+
+resolve_gate() {
+    case "$MIC_GATE" in
+        builtin|lsp|off) printf '%s' "$MIC_GATE" ;;
+        # auto never resolves to builtin: PipeWire's noisegate loads and then
+        # stays shut on this build. Load success is not pass-through success,
+        # which is why "did it start" probing was replaced by selftest.
+        auto) printf lsp ;;
+    esac
+}
+
+# FILTER_MODE=live -> capture from hardware, publish mic_filtered
+# FILTER_MODE=test -> capture side is a sink you can play into; used by
+#                     selftest so signal goes through the real graph
+FILTER_MODE=live
+
+filter_conf_body() {
+    local agc gate lat="" capture playback dfdesc
+    agc=$(resolve_agc)
+    gate=$(resolve_gate)
+    g_reset
+    stage_eq
+    stage_df
+    stage_gate "$gate"
+    stage_makeup
+    stage_agc "$agc"
+    stage_comp
+    stage_deess
+    stage_limit
+    stage_clamp
+    [ -n "$G_IN" ] || die "filter chain is empty; every stage is disabled"
+
+    if [ "$MIC_DF" = on ]; then dfdesc="${MIC_DF_ATTEN}dB"; else dfdesc=off; fi
+
+    if [ "$FILTER_MODE" = test ]; then
+        capture="                node.name        = \"micctl_test_in\"
+                media.class      = \"Audio/Sink\""
+        playback="                node.name        = \"micctl_test_out\"
+                node.description = \"micctl selftest\"
+                media.class      = \"Audio/Source\"
+                audio.rate       = $MIC_RATE"
+    else
+        [ -n "$MIC_CAPTURE_LATENCY" ] && lat="
+                node.latency     = $MIC_CAPTURE_LATENCY"
+        capture="                node.name        = \"$MIC_FILTERED_CAPTURE_NAME\"
+                node.passive     = true
+                target.object    = \"$MIC_HARDWARE_SOURCE\"$lat"
+        playback="                node.name        = \"$MIC_FILTERED_NAME\"
+                node.description = \"$(spa_esc "$MIC_FILTERED_DESC")\"
+                media.class      = \"Audio/Source\"
+                audio.rate       = $MIC_RATE
+                session.suspend-timeout-seconds = 0"
+    fi
+
+    cat <<EOF
+# generated by micctl $MICCTL_VERSION — filter ($FILTER_MODE)
+# profile: $PROFILE_ACTIVE
+# chain: eq -> df($dfdesc) -> gate($gate) -> makeup($MIC_MAKEUP) -> leveler($agc)
+#        -> comp($MIC_COMP) -> deess($MIC_DEESS) -> limit($MIC_LIMIT) -> clamp($MIC_CLAMP)
+context.properties = {
+    default.clock.rate = $MIC_RATE
+}
+context.modules = [
+$(client_modules)
+    { name = libpipewire-module-filter-chain
+        args = {
+            node.description = "$(spa_esc "$MIC_FILTERED_DESC")"
+            media.name       = "$(spa_esc "$MIC_FILTERED_DESC")"
+            audio.rate       = $MIC_RATE
+            audio.channels   = $MIC_CHANNELS
+            audio.position   = [ $MIC_POSITION ]
+            filter.graph = {
+                nodes = [
+$G_NODES                ]
+                links = [
+$G_LINKS                ]
+                inputs  = [ "$G_IN" ]
+                outputs = [ "$G_CUR" ]
+            }
+            capture.props = {
+$capture
+            }
+            playback.props = {
+$playback
+            }
+        }
+    }
+]
+EOF
+}
+
+# --- RX bodies -----------------------------------------------------------
+rx_conf_body() {
+    case "$MIC_RX_TRANSPORT" in
+        vban) rx_body_vban ;;
+        rtp)  rx_body_rtp ;;
+        roc)  rx_body_roc ;;
+    esac
+}
+
+rx_body_vban() {
+    cat <<EOF
+# generated by micctl $MICCTL_VERSION — vban rx
+context.modules = [
+$(client_modules)
+    { name = libpipewire-module-vban-recv
+        args = {
+            source.ip           = "$MIC_VBAN_BIND"
+            source.port         = $MIC_VBAN_PORT
+            sess.latency.msec   = $MIC_VBAN_RX_LATENCY
+            node.always-process = true
+            stream.props = {
+                media.class      = "Audio/Source"
+                node.name        = "$MIC_REMOTE_NAME"
+                node.description = "$(spa_esc "$MIC_REMOTE_DESC")"
+                audio.rate       = $MIC_RATE
+            }
+            stream.rules = [
+                { matches = [ { sess.name = "$MIC_VBAN_SESS_MATCH" } ]
+                  actions = {
+                    create-stream = {
+                      sess.latency.msec = $MIC_VBAN_RX_LATENCY
+                      media.class       = "Audio/Source"
+                      node.name         = "$MIC_REMOTE_NAME"
+                      node.description  = "$(spa_esc "$MIC_REMOTE_DESC")"
+                    }
+                  }
+                }
+            ]
+        }
+    }
+]
+EOF
+}
+
+# UNTESTED. sess.media = opus reduces bandwidth, but PipeWire exposes no
+# bitrate, FEC or DTX control, so it does not add loss resilience.
+rx_body_rtp() {
+    cat <<EOF
+# generated by micctl $MICCTL_VERSION — rtp rx (UNTESTED PATH)
+context.modules = [
+$(client_modules)
+    { name = libpipewire-module-rtp-source
+        args = {
+            source.ip           = "$MIC_VBAN_BIND"
+            source.port         = $MIC_VBAN_PORT
+            sess.latency.msec   = $MIC_VBAN_RX_LATENCY
+            sess.media          = "$MIC_RTP_MEDIA"
+            node.always-process = true
+            audio.rate          = $MIC_RATE
+            audio.channels      = $MIC_VBAN_CHANNELS
+            audio.position      = [ $MIC_VBAN_POSITION ]
+            stream.props = {
+                media.class      = "Audio/Source"
+                node.name        = "$MIC_REMOTE_NAME"
+                node.description = "$(spa_esc "$MIC_REMOTE_DESC")"
+            }
+        }
+    }
+]
+EOF
+}
+
+# UNTESTED. fec.code = rs8m|ldpc is the option that actually survives packet
+# loss; it needs sess.latency.msec large enough to hold repair packets.
+rx_body_roc() {
+    cat <<EOF
+# generated by micctl $MICCTL_VERSION — roc rx (UNTESTED PATH)
+context.modules = [
+$(client_modules)
+    { name = libpipewire-module-roc-source
+        args = {
+            local.ip            = "$MIC_VBAN_BIND"
+            local.source.port   = $MIC_ROC_SOURCE_PORT
+            local.repair.port   = $MIC_ROC_REPAIR_PORT
+            local.control.port  = $MIC_ROC_CONTROL_PORT
+            fec.code            = $MIC_ROC_FEC
+            sess.latency.msec   = $MIC_ROC_LATENCY
+            source.name         = "$(spa_esc "$MIC_REMOTE_DESC")"
+            source.props = {
+                media.class      = "Audio/Source"
+                node.name        = "$MIC_REMOTE_NAME"
+                node.description = "$(spa_esc "$MIC_REMOTE_DESC")"
+            }
+        }
+    }
+]
+EOF
+}
+
+# --- TX bodies -----------------------------------------------------------
+tx_conf_body() {
+    case "$MIC_TX_TRANSPORT" in
+        vban) tx_body_vban ;;
+        rtp)  tx_body_rtp ;;
+        roc)  tx_body_roc ;;
+    esac
+}
+
+# A capture stream targeting the filtered source, not an Audio/Sink plus a
+# loopback. node.dont-reconnect and priority.session = 0 keep wireplumber
+# from parking it on the hardware source when the filter is recreated, which
+# is what made the remote hear raw audio after a profile switch.
+tx_body_vban() {
+    cat <<EOF
+# generated by micctl $MICCTL_VERSION — vban tx
+context.modules = [
+$(client_modules)
+    { name = libpipewire-module-vban-send
+        args = {
+            destination.ip      = "$MIC_VBAN_DEST"
+            destination.port    = $MIC_VBAN_PORT
+            sess.name           = "$MIC_VBAN_SESS"
+            sess.min-ptime      = $MIC_VBAN_MIN_PTIME
+            sess.latency.msec   = $MIC_VBAN_TX_LATENCY
+            audio.rate          = $MIC_RATE
+            audio.channels      = $MIC_VBAN_CHANNELS
+            audio.position      = [ $MIC_VBAN_POSITION ]
+            node.always-process = true
+            stream.props = {
+                media.class         = "Stream/Input/Audio"
+                node.name           = "$MIC_VBAN_SEND_NAME"
+                node.description    = "VBAN $(spa_esc "$MIC_REMOTE_DESC")"
+                target.object       = "$MIC_FILTERED_NAME"
+                node.dont-reconnect = true
+                stream.dont-remix   = true
+                priority.session    = 0
+                priority.driver     = 0
+            }
+        }
+    }
+]
+EOF
+}
+
+tx_body_rtp() {
+    cat <<EOF
+# generated by micctl $MICCTL_VERSION — rtp tx (UNTESTED PATH)
+context.modules = [
+$(client_modules)
+    { name = libpipewire-module-rtp-sink
+        args = {
+            destination.ip      = "$MIC_VBAN_DEST"
+            destination.port    = $MIC_VBAN_PORT
+            net.mtu             = $MIC_RTP_MTU
+            net.ttl             = $MIC_RTP_TTL
+            sess.name           = "$MIC_VBAN_SESS"
+            sess.media          = "$MIC_RTP_MEDIA"
+            sess.min-ptime      = $MIC_VBAN_MIN_PTIME
+            sess.latency.msec   = $MIC_VBAN_TX_LATENCY
+            audio.rate          = $MIC_RATE
+            audio.channels      = $MIC_VBAN_CHANNELS
+            audio.position      = [ $MIC_VBAN_POSITION ]
+            stream.props = {
+                media.class         = "Stream/Input/Audio"
+                node.name           = "$MIC_VBAN_SEND_NAME"
+                target.object       = "$MIC_FILTERED_NAME"
+                node.dont-reconnect = true
+                stream.dont-remix   = true
+                priority.session    = 0
+            }
+        }
+    }
+]
+EOF
+}
+
+tx_body_roc() {
+    cat <<EOF
+# generated by micctl $MICCTL_VERSION — roc tx (UNTESTED PATH)
+context.modules = [
+$(client_modules)
+    { name = libpipewire-module-roc-sink
+        args = {
+            remote.ip           = "$MIC_VBAN_DEST"
+            remote.source.port  = $MIC_ROC_SOURCE_PORT
+            remote.repair.port  = $MIC_ROC_REPAIR_PORT
+            remote.control.port = $MIC_ROC_CONTROL_PORT
+            fec.code            = $MIC_ROC_FEC
+            sink.name           = "$MIC_VBAN_SEND_NAME"
+            audio.position      = [ $MIC_VBAN_POSITION ]
+            sink.props = {
+                node.name           = "$MIC_VBAN_SEND_NAME"
+                node.dont-reconnect = true
+                priority.session    = 0
+            }
+        }
+    }
+]
+EOF
+}
+
+# =========================================================================
+# Subsystem lifecycle
+# =========================================================================
+start_subsystem() {
+    local unit=$1 conf=$2 desc=$3 body=$4 check_kind=$5 check_name=$6
+    write_conf "$conf" "$body"
+    write_unit "$unit" "$desc" "$conf"
+    if ! sc restart "$unit"; then
+        rollback_conf "$conf"; journal_hint "$unit"; die "$unit failed to start"
+    fi
+    if [ -n "$check_name" ]; then
+        if ! wait_node "$check_kind" "$check_name"; then
+            sc stop "$unit" || true
+            rollback_conf "$conf"
+            journal_hint "$unit"
+            warn "exit 161 from the pipewire child means a feature module got ENOTSUP"
+            die "$check_name did not appear"
+        fi
+        info "ready $check_name"
+    else
+        info "$unit started"
+    fi
+    sc enable "$unit" >/dev/null 2>&1 || true
+    waybar_signal
+}
+
+stop_subsystem() {
+    local unit=$1 conf=$2
+    sc disable "$unit" >/dev/null 2>&1 || true
+    if unit_exists "$unit"; then sc stop "$unit" || true; fi
+    rm -f "$conf" "$conf.bak"
+    info "$unit stopped"
+    waybar_signal
+}
+
+reattach_tx() {
+    unit_active "$U_TX" || return 0
+    start_subsystem "$U_TX" "$TX_CONF" "micctl remote transmit" "$(tx_conf_body)" source ""
+    info "tx reattached to $MIC_FILTERED_NAME"
+}
+
+filter_start() {
+    local sh
+    require_pulse
+    validate_config
+    if [ "$MIC_DF" = on ] && [ ! -f "$MIC_DF_PLUGIN" ]; then die "missing $MIC_DF_PLUGIN"; fi
+    [ -f "$MIC_LSP_PLUGIN" ] || die "missing $MIC_LSP_PLUGIN"
+    have_source "$MIC_HARDWARE_SOURCE" || warn "hardware source $MIC_HARDWARE_SOURCE not present yet"
+    sh=$(shadowed_knobs)
+    if [ -n "$sh" ]; then info "note: environment overrides profile '$PROFILE_ACTIVE' for:$sh"; fi
+    start_subsystem "$U_FILTER" "$FILTER_CONF" "micctl filtered microphone" \
+        "$(filter_conf_body)" source "$MIC_FILTERED_NAME"
+    reattach_tx
+}
+
+cmd_filter() {
+    case "${1:-}" in
+        on) filter_start ;;
+        off)
+            if unit_active "$U_TX"; then
+                warn "tx is running and feeds on $MIC_FILTERED_NAME; it will go silent"
+            fi
+            stop_subsystem "$U_FILTER" "$FILTER_CONF"
+            ;;
+        toggle) if unit_active "$U_FILTER"; then cmd_filter off; else cmd_filter on; fi ;;
+        ""|status) info "filter : $(unit_active "$U_FILTER" && echo on || echo off)" ;;
+        *) die "micctl filter on|off|toggle" ;;
+    esac
+}
+
+cmd_rx() {
+    case "${1:-}" in
+        on)
+            require_pulse; validate_config
+            if [ "$MIC_VBAN_BIND" = "0.0.0.0" ]; then
+                warn "MIC_VBAN_BIND=0.0.0.0 listens on every interface; bind to your LAN address"
+            fi
+            if [ "$MIC_RX_TRANSPORT" != vban ]; then
+                warn "transport '$MIC_RX_TRANSPORT' is an untested path"
+            fi
+            start_subsystem "$U_RX" "$RX_CONF" "micctl remote receive" "$(rx_conf_body)" source ""
+            info "rx on ($MIC_REMOTE_NAME appears once matching packets arrive)"
+            ;;
+        off) stop_subsystem "$U_RX" "$RX_CONF" ;;
+        toggle) if unit_active "$U_RX"; then cmd_rx off; else cmd_rx on; fi ;;
+        ""|status) info "rx     : $(unit_active "$U_RX" && echo on || echo off)" ;;
+        *) die "micctl rx on|off|toggle" ;;
+    esac
+}
+
+cmd_tx() {
+    case "${1:-}" in
+        on)
+            require_pulse; validate_config
+            [ -n "$MIC_VBAN_DEST" ] || die "set MIC_VBAN_DEST to the other machine's LAN IP"
+            have_source "$MIC_FILTERED_NAME" || die "tx needs $MIC_FILTERED_NAME — run: micctl filter on"
+            if [ "$MIC_TX_TRANSPORT" != vban ]; then
+                warn "transport '$MIC_TX_TRANSPORT' is an untested path"
+            fi
+            start_subsystem "$U_TX" "$TX_CONF" "micctl remote transmit" "$(tx_conf_body)" source ""
+            info "tx on -> $MIC_VBAN_DEST via $MIC_TX_TRANSPORT"
+            ;;
+        off) stop_subsystem "$U_TX" "$TX_CONF" ;;
+        toggle) if unit_active "$U_TX"; then cmd_tx off; else cmd_tx on; fi ;;
+        ""|status) info "tx     : $(unit_active "$U_TX" && echo on || echo off)" ;;
+        *) die "micctl tx on|off|toggle" ;;
+    esac
+}
+
+# =========================================================================
+# Profile commands
+# =========================================================================
+profile_reload() {
+    unit_active "$U_FILTER" || return 0
+    start_subsystem "$U_FILTER" "$FILTER_CONF" "micctl filtered microphone" \
+        "$(filter_conf_body)" source "$MIC_FILTERED_NAME"
+    reattach_tx
+}
+
+profile_show() {
+    local db sh miss=""
+    db=$(awk -v t="$MIC_COMP_THRESH" 'BEGIN{printf "%.0f", 20*log(t)/log(10)}')
+    [ "$PROFILE_MISSING" = 1 ] && miss="  (MISSING, showing default)"
+    info "profile : ${PROFILE_ACTIVE}${miss}"
+    info "  makeup=$MIC_MAKEUP hpf=${MIC_HPF_FREQ}Hz shelf=${MIC_HF_SHELF_GAIN}dB post=${MIC_DF_POSTFILTER:-off}"
+    info "  leveler=$MIC_AGC [${MIC_AGC_GAIN_MIN}..${MIC_AGC_GAIN_MAX}]"
+    info "  comp=${MIC_COMP_RATIO}:1 @${db}dB atk=${MIC_COMP_ATTACK}ms limit=$MIC_LIMIT_THRESH"
+    sh=$(shadowed_knobs)
+    [ -n "$sh" ] && info "  shadowed by environment:$sh"
+    return 0
+}
+
+profile_do_save() {
+    local name=$1 k
+    profile_is_builtin "$name" && die "refusing to overwrite builtin '$name'; pick another name"
+    case "$name" in ''|*/*|*\\*|.*) die "bad profile name: $name" ;; esac
+    mkdir -p "$PROFILE_DIR"
+    {
+        printf '# micctl profile %s — saved %s from %s\n' "$name" "$(date -Is)" "$PROFILE_ACTIVE"
+        for k in "${PROFILE_KNOB_ORDER[@]}"; do
+            printf '%s=%s\n' "$k" "${CFG[$k]}"
+        done
+    } > "$(profile_file "$name")"
+    info "wrote $(profile_file "$name")"
+    profile_write "$name"
+    # re-resolve so PROFILE_ACTIVE reflects reality afterwards
+    resolve_config "$name" 0
+    waybar_signal
+}
+
+profile_do_switch() {
+    local next=$1
+    profile_exists "$next" || die "unknown profile: $next"
+    # The one place env does NOT win: an explicit profile switch must move the
+    # knobs it owns, or a MIC_MAKEUP left in the session environment makes
+    # `cycle` a silent no-op.
+    resolve_config "$next" 1
+    validate_config
+    profile_write "$next"
+    profile_show
+    profile_reload
+    waybar_signal
+}
+
+profile_next_name() {
+    local cur=$1 n first="" found=0 next=""
+    while IFS= read -r n; do
+        [ -n "$first" ] || first=$n
+        if [ "$found" = 1 ] && [ -z "$next" ]; then next=$n; fi
+        if [ "$n" = "$cur" ]; then found=1; fi
+    done < <(profile_names)
+    [ -n "$next" ] || next=$first
+    printf '%s\n' "$next"
+}
+
+cmd_profile() {
+    local arg=${1:-status} n
+    case "$arg" in
+        ""|status) profile_show ;;
+        list)
+            n=$(profile_current)
+            while IFS= read -r p; do
+                if [ "$p" = "$n" ]; then info "* $p"; else info "  $p"; fi
+            done < <(profile_names)
+            ;;
+        # save does NOT clear the environment: capturing live tweaks is the
+        # entire point. v4 re-applied the profile first and so always saved
+        # the profile's own values back.
+        save)  profile_do_save "${2:-}" ;;
+        cycle) profile_do_switch "$(profile_next_name "$(profile_current)")" ;;
+        set)   [ -n "${2:-}" ] || die "micctl profile set <name>"; profile_do_switch "$2" ;;
+        *)     profile_do_switch "$arg" ;;
+    esac
+}
+
+# =========================================================================
+# Monitor
+# =========================================================================
+monitor_current() {
+    local inst
+    inst=$(sc list-units --state=active --plain --no-legend "${U_MON}*.service" 2>/dev/null \
+        | awk '{print $1; exit}') || true
+    case "$inst" in
+        "") echo off ;;
+        *) printf '%s\n' "$inst" | sed "s|^${U_MON}||; s|\.service$||" ;;
+    esac
+}
+
+monitor_source_for() {
+    case "$1" in
+        hardware) printf '%s\n' "$MIC_HARDWARE_SOURCE" ;;
+        filtered) printf '%s\n' "$MIC_FILTERED_NAME" ;;
+        remote)   printf '%s\n' "$MIC_REMOTE_NAME" ;;
+        *) return 1 ;;
+    esac
+}
+
+monitor_sink() {
+    local sink=$MIC_MON_SINK
+    [ -n "$sink" ] || sink=$(pactl get-default-sink 2>/dev/null || true)
+    [ -n "$sink" ] || die "no sink; set MIC_MON_SINK to your headphones"
+    have_sink "$sink" || die "sink not found: $sink"
+    if [ "$sink" = "$MIC_HARDWARE_JACK" ] || [ "$sink" = "$MIC_VBAN_SEND_NAME" ]; then
+        die "refusing sink $sink (mic jack or vban). Set MIC_MON_SINK to headphones."
+    fi
+    printf '%s\n' "$sink"
+}
+
+cmd_monitor_exec() {
+    local target=$1 src sink quantum
+    src=$(monitor_source_for "$target") || die "bad monitor target: $target"
+    require_pulse
+    have_source "$src" || die "source not found: $src"
+    sink=$(monitor_sink)
+    need pw-loopback
+    quantum=$(( MIC_MON_LATENCY * MIC_RATE / 1000 ))
+    exec pw-loopback \
+        --name "micctl-monitor-$target" \
+        --capture "$src" --playback "$sink" \
+        --capture-props="node.latency=${quantum}/${MIC_RATE} media.name=micctl-monitor" \
+        --playback-props="node.latency=${quantum}/${MIC_RATE} media.name=micctl-monitor"
+}
+
+monitor_stop() {
+    local cur
+    cur=$(monitor_current)
+    if [ "$cur" != off ]; then sc stop "${U_MON}${cur}.service" || true; fi
+    return 0
+}
+
+# 0 = started, 2 = candidate unavailable, 1 = real failure. v4 conflated 2 and
+# 1, so a refused sink reported "no monitor source available".
+monitor_start() {
+    local target=$1 src
+    src=$(monitor_source_for "$target") || die "bad monitor target: $target"
+    require_pulse
+    have_source "$src" || { warn "source not found: $src"; return 2; }
+    monitor_sink >/dev/null
+    monitor_stop
+    write_monitor_unit
+    if ! sc start "${U_MON}${target}.service"; then
+        journal_hint "${U_MON}${target}.service"; return 1
+    fi
+    info "monitor $target ($src)"
+    waybar_signal
+    return 0
+}
+
+monitor_cycle() {
+    local cur order next rc
+    cur=$(monitor_current)
+    case "$cur" in
+        off)      order="hardware filtered remote" ;;
+        hardware) order="filtered remote" ;;
+        filtered) order="remote" ;;
+        *)        order="" ;;
+    esac
+    for next in $order; do
+        rc=0; monitor_start "$next" || rc=$?
+        case "$rc" in
+            0) return 0 ;;
+            2) continue ;;
+            *) return "$rc" ;;
+        esac
+    done
+    monitor_stop; info "monitor off"; waybar_signal
+}
+
+cmd_monitor() {
+    case "${1:-}" in
+        ""|status) info "monitor: $(monitor_current)" ;;
+        off) monitor_stop; info "monitor off"; waybar_signal ;;
+        hardware|filtered|remote) monitor_start "$1" || die "could not start monitor $1" ;;
+        cycle) monitor_cycle ;;
+        *) die "micctl monitor hardware|filtered|remote|off|cycle|status" ;;
+    esac
+}
+
+# =========================================================================
+# selftest — push signal through, measure what comes out
+# =========================================================================
+# v4 probed by asking "did pipewire stay up for two seconds". That cannot tell
+# a working stage from one that loads and then passes silence, which is how
+# the builtin noisegate and an unwired LSP gate both slipped through. These
+# tests assert on the recording instead.
+
+ST_DIR=""
+ST_PID=""
+ST_PASS=0
+ST_FAIL=0
+
+st_cleanup() {
+    if [ -n "$ST_PID" ]; then kill "$ST_PID" 2>/dev/null || true; wait "$ST_PID" 2>/dev/null || true; fi
+    ST_PID=""
+    [ -n "$ST_DIR" ] && rm -rf "$ST_DIR"
+    ST_DIR=""
+}
+
+st_ok()   { ST_PASS=$((ST_PASS+1)); printf '  PASS  %s\n' "$*"; }
+st_bad()  { ST_FAIL=$((ST_FAIL+1)); printf '  FAIL  %s\n' "$*"; }
+st_note() { printf '        %s\n' "$*"; }
+
+# "mean max" in dBFS, via ffmpeg volumedetect
+st_measure() {
+    local f=$1 out mean max
+    out=$(ffmpeg -hide_banner -nostats -v info -i "$f" -af volumedetect -f null - 2>&1) || return 1
+    mean=$(printf '%s' "$out" | sed -n 's/.*mean_volume: *\(-\?[0-9.]*\) dB.*/\1/p' | tail -1)
+    max=$(printf '%s'  "$out" | sed -n 's/.*max_volume: *\(-\?[0-9.]*\) dB.*/\1/p'  | tail -1)
+    [ -n "$mean" ] || return 1
+    printf '%s %s' "$mean" "$max"
+}
+
+st_lufs() {
+    ffmpeg -hide_banner -nostats -v info -i "$1" -af ebur128 -f null - 2>&1 \
+        | sed -n 's/.* I: *\(-\?[0-9.]*\) LUFS.*/\1/p' | tail -1
+}
+
+st_gen_sine() {
+    local f=$1 db=$2 secs=$3 amp
+    amp=$(awk -v d="$db" 'BEGIN{printf "%.6f", 10^(d/20)}')
+    ffmpeg -hide_banner -v error -y \
+        -f lavfi -i "sine=frequency=440:sample_rate=${MIC_RATE}:duration=${secs}" \
+        -af "volume=${amp}" -ac 1 -ar "$MIC_RATE" "$f"
+}
+
+st_gen_silence() {
+    ffmpeg -hide_banner -v error -y \
+        -f lavfi -i "anullsrc=r=${MIC_RATE}:cl=mono" -t "$2" -ac 1 -ar "$MIC_RATE" "$1"
+}
+
+st_start_chain() {
+    local conf="$ST_DIR/test.conf" i=0
+    FILTER_MODE=test
+    filter_conf_body > "$conf"
+    FILTER_MODE=live
+    pipewire -c "$conf" >"$ST_DIR/pw.log" 2>&1 &
+    ST_PID=$!
+    while [ "$i" -lt 30 ]; do
+        if have_sink micctl_test_in && have_source micctl_test_out; then return 0; fi
+        kill -0 "$ST_PID" 2>/dev/null || break
+        i=$((i+1)); sleep 0.2
+    done
+    return 1
+}
+
+st_stop_chain() {
+    [ -n "$ST_PID" ] || return 0
+    kill "$ST_PID" 2>/dev/null || true
+    wait "$ST_PID" 2>/dev/null || true
+    ST_PID=""
+    return 0
+}
+
+st_run_signal() {
+    local in=$1 out=$2 rec
+    pw-record --target micctl_test_out "$out" >/dev/null 2>&1 &
+    rec=$!
+    sleep 0.3
+    pw-play --target micctl_test_in "$in" >/dev/null 2>&1 || true
+    sleep 0.5
+    kill "$rec" 2>/dev/null || true
+    wait "$rec" 2>/dev/null || true
+    [ -s "$out" ]
+}
+
+# Does this build actually have ebur128? This is the one place a load-only
+# probe is still correct: the question is "does the node type exist", not
+# "does it pass audio", and selftest covers the latter.
+have_ebur128() {
+    local cached="$RUN_DIR/have-ebur128" d rc=0
+    if [ -f "$cached" ]; then [ "$(cat "$cached")" = yes ]; return; fi
+    have pipewire || return 1
+    d=$(mktemp -d)
+    {
+        printf 'context.properties = { log.level = 0 }\ncontext.modules = [\n'
+        client_modules
+        cat <<EOF
+    { name = libpipewire-module-filter-chain
+        args = {
+            audio.channels = 1
+            audio.position = [ MONO ]
+            filter.graph = {
+                nodes = [ { type = ebur128 name = m label = ebur128 } ]
+                inputs  = [ "m:In DUAL MONO" ]
+                outputs = [ "m:Out DUAL MONO" ]
+            }
+            capture.props  = { node.name = "micctl_eb_in" node.passive = true }
+            playback.props = { node.name = "micctl_eb_out" media.class = "Audio/Source" }
+        }
+    }
+]
+EOF
+    } > "$d/eb.conf"
+    timeout 2 pipewire -c "$d/eb.conf" >/dev/null 2>&1 || rc=$?
+    rm -rf "$d"
+    mkdir -p "$RUN_DIR"
+    if [ "$rc" = 124 ]; then echo yes > "$cached"; return 0; fi
+    echo no > "$cached"
+    return 1
+}
+
+# Each test configures the chain down to what it is actually asserting. A
+# denoiser will happily destroy a synthetic tone, so DeepFilter is off unless
+# a real recording is supplied with --input.
+selftest_suite() {
+    local input=$1 m mean max expect ceil_db ilufs olufs
+
+    info "== 1. graph loads"
+    MIC_DF=off
+    if st_start_chain; then
+        st_ok "chain instantiated (micctl_test_in / micctl_test_out present)"
+    else
+        st_bad "chain did not instantiate"
+        st_note "last lines of the pipewire log:"
+        tail -12 "$ST_DIR/pw.log" 2>/dev/null | sed 's/^/        /'
+        st_note "exit 161 means a feature module got ENOTSUP: client_modules missing"
+        st_stop_chain
+        return 0
+    fi
+
+    info "== 2. signal passes (gate opens, nothing mutes the chain)"
+    st_gen_sine "$ST_DIR/s24.wav" -24 3
+    if st_run_signal "$ST_DIR/s24.wav" "$ST_DIR/o24.wav" && m=$(st_measure "$ST_DIR/o24.wav"); then
+        read -r mean max <<< "$m"
+        if awk -v v="$max" 'BEGIN{exit !(v > -60)}'; then
+            st_ok "output present (mean ${mean} dB, peak ${max} dB)"
+        else
+            st_bad "output is silent (peak ${max} dB) — a stage is muting the chain"
+            st_note "run: micctl selftest --stages"
+        fi
+    else
+        st_bad "could not record output"
+    fi
+
+    info "== 3. gate closes on silence"
+    st_gen_silence "$ST_DIR/sil.wav" 2
+    if st_run_signal "$ST_DIR/sil.wav" "$ST_DIR/osil.wav" && m=$(st_measure "$ST_DIR/osil.wav"); then
+        read -r mean max <<< "$m"
+        if awk -v v="$max" 'BEGIN{exit !(v < -55)}'; then
+            st_ok "silence stays silent (peak ${max} dB)"
+        else
+            st_bad "silence leaks at peak ${max} dB"
+            st_note "LSP gate Reduction (G) defaults to 1 = no gating; check it is emitted"
+        fi
+    else
+        st_bad "could not record silence"
+    fi
+    st_stop_chain
+
+    info "== 4. makeup gain matches the profile"
+    MIC_DF=off; MIC_COMP=off; MIC_LIMIT=off; MIC_AGC=off
+    expect=$(awk -v g="$MIC_MAKEUP" 'BEGIN{printf "%.1f", -24 + 20*log(g)/log(10)}')
+    if st_start_chain; then
+        if st_run_signal "$ST_DIR/s24.wav" "$ST_DIR/og.wav" && m=$(st_measure "$ST_DIR/og.wav"); then
+            read -r mean max <<< "$m"
+            if awk -v a="$max" -v b="$expect" 'BEGIN{exit !((a-b < 2.0) && (b-a < 2.0))}'; then
+                st_ok "peak ${max} dB, expected about ${expect} dB (makeup $MIC_MAKEUP)"
+            else
+                st_bad "peak ${max} dB, expected about ${expect} dB"
+            fi
+        else
+            st_bad "could not record gain test"
+        fi
+    else
+        st_bad "gain-test chain did not instantiate"
+    fi
+    st_stop_chain
+
+    info "== 5. limiter holds the ceiling"
+    MIC_DF=off; MIC_COMP=on; MIC_LIMIT=on; MIC_CLAMP=on
+    ceil_db=$(awk -v t="$MIC_LIMIT_THRESH" 'BEGIN{printf "%.1f", 20*log(t)/log(10)}')
+    st_gen_sine "$ST_DIR/hot.wav" -1 3
+    if st_start_chain; then
+        if st_run_signal "$ST_DIR/hot.wav" "$ST_DIR/ohot.wav" && m=$(st_measure "$ST_DIR/ohot.wav"); then
+            read -r mean max <<< "$m"
+            if awk -v a="$max" -v c="$ceil_db" 'BEGIN{exit !(a <= c + 1.0)}'; then
+                st_ok "full-scale input capped at ${max} dB (ceiling ${ceil_db} dB)"
+            else
+                st_bad "peak ${max} dB exceeds the ${ceil_db} dB ceiling"
+            fi
+        else
+            st_bad "could not record limiter test"
+        fi
+    else
+        st_bad "limiter-test chain did not instantiate"
+    fi
+    st_stop_chain
+
+    if [ -n "$input" ]; then
+        info "== 6. full chain on real speech"
+        if [ ! -f "$input" ]; then st_bad "no such file: $input"; return 0; fi
+        resolve_config "" 0
+        if st_start_chain && st_run_signal "$input" "$ST_DIR/ospeech.wav"; then
+            ilufs=$(st_lufs "$input"); olufs=$(st_lufs "$ST_DIR/ospeech.wav")
+            st_ok "in ${ilufs} LUFS -> out ${olufs} LUFS"
+            st_note "record the same text at two distances and compare: within"
+            st_note "~2 LU means the distance compensation is doing its job"
+        else
+            st_bad "full-chain run failed"
+        fi
+        st_stop_chain
+    else
+        st_note "tip: micctl selftest --input voice.wav exercises DeepFilter too;"
+        st_note "     synthetic tones are meaningless through a speech model"
+    fi
+    return 0
+}
+
+# Build the chain up one stage at a time and report where the signal dies.
+# Turns "mic_filtered is silent" into "the gate is eating it" without
+# bisecting a conf by hand.
+selftest_stages() {
+    local names=(eq df gate makeup agc comp deess limit clamp)
+    local i j n m mean max prev="" delta
+    st_gen_sine "$ST_DIR/s24.wav" -24 2
+
+    info "cumulative chain, -24 dBFS tone in:"
+    for i in "${!names[@]}"; do
+        n=${names[$i]}
+        resolve_config "" 0
+        for ((j=i+1; j<${#names[@]}; j++)); do
+            case "${names[$j]}" in
+                eq)     MIC_HPF_FREQ=0; MIC_NOTCH_FREQ=0; MIC_HF_SHELF_GAIN=0 ;;
+                df)     MIC_DF=off ;;
+                gate)   MIC_GATE=off ;;
+                makeup) MIC_MAKEUP=1.0 ;;
+                agc)    MIC_AGC=off ;;
+                comp)   MIC_COMP=off ;;
+                deess)  MIC_DEESS=off ;;
+                limit)  MIC_LIMIT=off ;;
+                clamp)  MIC_CLAMP=off ;;
+            esac
+        done
+        if ! st_start_chain; then
+            printf '  %-8s CHAIN REFUSED TO LOAD\n' "$n"
+            tail -6 "$ST_DIR/pw.log" 2>/dev/null | sed 's/^/           /'
+            st_stop_chain
+            ST_FAIL=$((ST_FAIL+1))
+            return 0
+        fi
+        if st_run_signal "$ST_DIR/s24.wav" "$ST_DIR/st.wav" && m=$(st_measure "$ST_DIR/st.wav"); then
+            read -r mean max <<< "$m"
+            if awk -v v="$max" 'BEGIN{exit !(v > -60)}'; then
+                delta=""
+                [ -n "$prev" ] && delta=$(awk -v a="$max" -v b="$prev" 'BEGIN{printf "   (%+.1f dB)", a-b}')
+                printf '  %-8s peak %8s dB%s\n' "$n" "$max" "$delta"
+                ST_PASS=$((ST_PASS+1))
+                prev=$max
+            else
+                printf '  %-8s peak %s dB  <-- SIGNAL DIES HERE\n' "$n" "$max"
+                ST_FAIL=$((ST_FAIL+1))
+                st_stop_chain
+                return 0
+            fi
+        else
+            printf '  %-8s no recording\n' "$n"
+            ST_FAIL=$((ST_FAIL+1))
+        fi
+        st_stop_chain
+    done
+    return 0
+}
+
+cmd_selftest() {
+    local stages=0 input=$MIC_SELFTEST_INPUT
+    need ffmpeg; need pipewire; need pw-play; need pw-record
+    require_pulse
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --stages) stages=1 ;;
+            --input)  shift; input=${1:-} ;;
+            "")       ;;
+            *) die "micctl selftest [--stages] [--input FILE]" ;;
+        esac
+        shift || true
+    done
+    ST_DIR=$(mktemp -d)
+    trap st_cleanup EXIT
+    if [ "$stages" = 1 ]; then selftest_stages; else selftest_suite "$input"; fi
+    info ""
+    info "passed $ST_PASS, failed $ST_FAIL"
+    [ "$ST_FAIL" = 0 ]
+}
+
+# =========================================================================
+# Reporting
+# =========================================================================
+cmd_status() {
+    local n sh miss=""
+    [ "$PROFILE_MISSING" = 1 ] && miss=" (MISSING)"
+    info "version  : $MICCTL_VERSION"
+    info "profile  : ${PROFILE_ACTIVE}${miss}"
+    pulse_up || warn "pulse layer unreachable; readings below are unreliable"
+    info "hardware : $MIC_HARDWARE_SOURCE"
+    info "filter   : $(unit_active "$U_FILTER" && echo on || echo off)  node=$(node_pulse_state sources "$MIC_FILTERED_NAME")"
+    info "rx       : $(unit_active "$U_RX" && echo on || echo off)  node=$(node_pulse_state sources "$MIC_REMOTE_NAME")  transport=$MIC_RX_TRANSPORT"
+    info "tx       : $(unit_active "$U_TX" && echo on || echo off)  dest=${MIC_VBAN_DEST:-unset}  transport=$MIC_TX_TRANSPORT  ch=$MIC_VBAN_CHANNELS"
+    info "monitor  : $(monitor_current)"
+    info "chain    : eq -> df($MIC_DF/${MIC_DF_ATTEN}dB) -> gate($MIC_GATE) -> makeup($MIC_MAKEUP) -> leveler($MIC_AGC) -> comp -> limit"
+    info "default  : $(pactl get-default-source 2>/dev/null || echo '?')"
+    for n in "$MIC_HARDWARE_SOURCE" "$MIC_FILTERED_NAME" "$MIC_REMOTE_NAME"; do
+        short_line sources "$n" | sed 's/^/  /'
+    done
+    info "config   : $CONF_DIR$([ "$USING_LEGACY_DIR" = 1 ] && echo '  (v4 location; run micctl migrate)')"
+    if [ -d "$GEN_DIR" ]; then ls -1 "$GEN_DIR" 2>/dev/null | sed 's/^/  /' || true; fi
+    sh=$(shadowed_knobs)
+    [ -n "$sh" ] && info "note     : environment overrides the profile for:$sh"
+    if ls "$LEGACY_PW_DIR"/99-"$MIC_FILTERED_NAME".conf >/dev/null 2>&1; then
+        warn "v2 confs still in $LEGACY_PW_DIR — run: micctl migrate"
+    fi
+    return 0
+}
+
+cmd_env() {
+    local k sec="" o h
+    for k in "${ORDER[@]}"; do
+        if [ "${SECTION[$k]}" != "$sec" ]; then
+            sec=${SECTION[$k]}
+            printf '\n# %s\n' "$sec"
+        fi
+        o=${ORIGIN[$k]}
+        h=${HELP[$k]}
+        [ -n "$h" ] && h="  $h"
+        printf '%-26s = %-44s # %s%s\n' "$k" "${CFG[$k]}" "$o" "$h"
+    done
+}
+
+cmd_render() {
+    case "${1:-filter}" in
+        filter) filter_conf_body ;;
+        rx)     rx_conf_body ;;
+        tx)     tx_conf_body ;;
+        *) die "micctl render filter|rx|tx" ;;
+    esac
+}
+
+cmd_dump() {
+    local f
+    for f in "$FILTER_CONF" "$RX_CONF" "$TX_CONF"; do
+        info "---- $f"
+        if [ -f "$f" ]; then cat "$f"; else info "(missing)"; fi
+    done
+    info ""
+    info "(that is what is on disk; 'micctl render filter' shows what would be written now)"
+}
+
+cmd_doctor() {
+    local c
+    info "== commands"
+    for c in pactl pipewire pw-loopback pw-play pw-record pw-top systemctl ffmpeg analyseplugin flock timeout; do
+        if have "$c"; then info "  ok      $c"; else info "  MISSING $c"; fi
+    done
+
+    info "== pipewire"
+    if pulse_up; then pactl info | sed -n '1,6p' | sed 's/^/  /'; else info "  pulse layer unreachable"; fi
+
+    info "== optional builtins"
+    if have_ebur128; then
+        info "  ok      ebur128 / lufs2gain (bounded leveler available)"
+    else
+        info "  absent  ebur128 (MIC_AGC=auto falls back to lsp)"
+    fi
+    info "  note    builtin noisegate is never auto-selected: on this build it"
+    info "          loads and then stays shut. MIC_GATE=lsp is the working path."
+
+    info "== plugins"
+    for c in "$MIC_DF_PLUGIN" "$MIC_LSP_PLUGIN"; do
+        if [ -f "$c" ]; then info "  ok      $c"; else info "  MISSING $c"; fi
+    done
+
+    if have analyseplugin && [ -f "$MIC_DF_PLUGIN" ]; then
+        info "== deepfilter ports (config says in='$MIC_DF_IN' out='$MIC_DF_OUT')"
+        analyseplugin "$MIC_DF_PLUGIN" 2>/dev/null | sed -n '1,40p' | sed 's/^/  /' || true
+    fi
+    if have analyseplugin && [ -f "$MIC_LSP_PLUGIN" ]; then
+        info "== lsp mono plugins (config says in='$MIC_LSP_IN' out='$MIC_LSP_OUT')"
+        analyseplugin -l "$MIC_LSP_PLUGIN" 2>/dev/null | grep -E '_mono' | sed 's/^/  /' || true
+        info "  full port list: analyseplugin $MIC_LSP_PLUGIN | less"
+    fi
+
+    info "== next"
+    info "  micctl selftest           prove audio comes out the other end"
+    info "  micctl selftest --stages  find which stage kills the signal"
+    return 0
+}
+
+cmd_migrate() {
+    local moved=0 f
+    for f in "$LEGACY_PW_DIR/99-${MIC_FILTERED_NAME}.conf" \
+             "$LEGACY_PW_DIR/80-vban-recv.conf" \
+             "$LEGACY_PW_DIR/81-vban-send.conf"; do
+        if [ -f "$f" ]; then
+            mv -f "$f" "$f.micctl-disabled"; info "disabled $f"; moved=1
+        fi
+    done
+    rm -f /tmp/micctl-monitor.module /tmp/micctl-vban-tx.module
+    if [ -d "$CONF_DIR_V4" ] && [ "$CONF_DIR_V4" != "$CONF_DIR_NEW" ]; then
+        mkdir -p "$CONF_DIR_NEW"
+        [ -f "$CONF_DIR_V4/profile" ] && cp -f "$CONF_DIR_V4/profile" "$CONF_DIR_NEW/profile"
+        [ -d "$CONF_DIR_V4/profiles" ] && cp -rf "$CONF_DIR_V4/profiles" "$CONF_DIR_NEW/"
+        info "copied profile state to $CONF_DIR_NEW"
+        info "old directory left at $CONF_DIR_V4; remove it once happy"
+        moved=1
+    fi
+    if [ "$moved" = 1 ]; then info "now run: micctl reload && micctl filter on"; else info "nothing to migrate"; fi
+    return 0
+}
+
+cmd_reconcile() {
+    local u cur
+    for u in "$U_FILTER" "$U_RX" "$U_TX"; do
+        if unit_active "$u"; then info "restarting $u"; sc restart "$u" || warn "$u failed to restart"; fi
+    done
+    cur=$(monitor_current)
+    if [ "$cur" != off ]; then sc restart "${U_MON}${cur}.service" || true; fi
+    waybar_signal
+    return 0
+}
+
+reload_pw() {
+    local i=0
+    info "restarting pipewire (units follow via BindsTo)"
+    sc restart pipewire pipewire-pulse wireplumber
+    rm -f "$RUN_DIR/have-ebur128"
+    while [ "$i" -lt "$MIC_WAIT_TRIES" ]; do
+        pulse_up && { waybar_signal; return 0; }
+        i=$((i + 1)); sleep "$MIC_WAIT_SLEEP"
+    done
+    die "pipewire did not come back"
+}
+
+# =========================================================================
+# Waybar — contract unchanged since v2
+# =========================================================================
+json_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+waybar_signal() {
+    [ -n "${MIC_WAYBAR_SIGNAL:-}" ] || return 0
+    pkill "-RTMIN+$MIC_WAYBAR_SIGNAL" waybar 2>/dev/null || true
+    return 0
+}
+
+waybar_emit() {
+    printf '{"text":"%s","alt":"%s","class":"%s","tooltip":"%s"}\n' \
+        "$(json_esc "$1")" "$2" "${2}-${3}" "$(json_esc "$4")"
+}
+
+live_from_node() {
+    local unit=$1 kind=$2 name=$3
+    if ! unit_active "$unit"; then echo "off off"; return 0; fi
+    case "$(node_pulse_state "$kind" "$name")" in
+        running)   echo "on live" ;;
+        idle)      echo "on idle" ;;
+        suspended) echo "on suspended" ;;
+        *)         echo "on idle" ;;
+    esac
+}
+
+waybar_one() {
+    local state live pair name short miss=""
+    case "$1" in
+        filter)
+            pair=$(live_from_node "$U_FILTER" sources "$MIC_FILTERED_NAME")
+            read -r state live <<< "$pair"
+            waybar_emit FIL "$state" "$live" "filter $state ($live) atten=${MIC_DF_ATTEN}dB"
+            ;;
+        rx)
+            pair=$(live_from_node "$U_RX" sources "$MIC_REMOTE_NAME")
+            read -r state live <<< "$pair"
+            waybar_emit RX "$state" "$live" "rx $state ($live) sess=$MIC_VBAN_SESS_MATCH"
+            ;;
+        tx)
+            # TX is a capture stream, not a sink, so liveness is read off the
+            # source it consumes.
+            if unit_active "$U_TX"; then
+                state=on
+                case "$(node_pulse_state sources "$MIC_FILTERED_NAME")" in
+                    running) live=live ;;
+                    idle)    live=idle ;;
+                    *)       live=suspended ;;
+                esac
+            else
+                state=off; live=off
+            fi
+            waybar_emit TX "$state" "$live" "tx $state ($live) dest=${MIC_VBAN_DEST:-unset}"
+            ;;
+        monitor)
+            case "$(monitor_current)" in
+                hardware) waybar_emit RAW on live "monitor raw hardware" ;;
+                filtered) waybar_emit FIL on live "monitor $MIC_FILTERED_NAME" ;;
+                remote)   waybar_emit REM on live "monitor $MIC_REMOTE_NAME" ;;
+                *)        waybar_emit M off off "monitor off" ;;
+            esac
+            ;;
+        profile)
+            # alt is the profile name here, not on/off, so format-icons and CSS
+            # key off it independently of the other modules.
+            name=$PROFILE_ACTIVE
+            short=$(profile_short "$name")
+            if unit_active "$U_FILTER"; then state=on; else state=off; fi
+            [ "$PROFILE_MISSING" = 1 ] && miss=" (missing)"
+            waybar_emit "$short" "$name" "$state" \
+                "profile ${name}${miss}  makeup=$MIC_MAKEUP hpf=${MIC_HPF_FREQ}Hz"
+            ;;
+        *) waybar_emit "?" off off "unknown module: $1" ;;
+    esac
+    return 0
+}
+
+# Every module is guaranteed to print exactly one object. v4's `die` on an
+# unknown profile exited the process, so the bar module went blank and
+# `waybar all` was truncated after monitor.
+waybar_guard() {
+    local out
+    out=$( waybar_one "$1" 2>/dev/null ) || true
+    if [ -n "$out" ]; then
+        printf '%s\n' "$out"
+    else
+        waybar_emit "?" off off "micctl error in module: $1"
+    fi
+}
+
+cmd_waybar() {
+    local w
+    set +e
+    case "${1:-}" in
+        all) for w in filter rx tx monitor profile; do waybar_guard "$w"; done ;;
+        "")  waybar_emit "?" off off "usage: micctl waybar filter|rx|tx|monitor|profile|all" ;;
+        *)   waybar_guard "$1" ;;
+    esac
+    return 0
+}
+
+# =========================================================================
+usage() {
+    printf '%s\n' \
+        "micctl $MICCTL_VERSION" \
+        "Usage:" \
+        "  micctl status | env | doctor | selftest [--stages] [--input F]" \
+        "  micctl dump | render filter|rx|tx" \
+        "  micctl reload | reconcile | migrate" \
+        "  micctl filter  on|off|toggle" \
+        "  micctl rx      on|off|toggle" \
+        "  micctl tx      on|off|toggle" \
+        "  micctl monitor hardware|filtered|remote|off|cycle|status" \
+        "  micctl profile [status|list|cycle|set <n>|save <n>|<n>]" \
+        "  micctl waybar  filter|rx|tx|monitor|profile|all" \
+        "" \
+        "Configuration layers, later wins:" \
+        "  builtin default -> $SYSTEM_CONF -> \$CONF_DIR/config.env" \
+        "  -> profile -> environment" \
+        "'micctl env' shows the resolved value and its origin for every key." \
+        "Config dir: $CONF_DIR"
+}
+
+main() {
+    local cmd=${1:-status}
+    shift || true
+    case "$cmd" in
+        status)         cmd_status ;;
+        env)            cmd_env ;;
+        doctor)         cmd_doctor ;;
+        selftest)       cmd_selftest "$@" ;;
+        dump)           cmd_dump ;;
+        render)         cmd_render "${1:-filter}" ;;
+        reload)         reload_pw ;;
+        reconcile)      cmd_reconcile ;;
+        migrate)        cmd_migrate ;;
+        filter)         cmd_filter "${1:-}" ;;
+        rx)             cmd_rx "${1:-}" ;;
+        tx)             cmd_tx "${1:-}" ;;
+        monitor)        cmd_monitor "${1:-}" ;;
+        monitor-exec)   cmd_monitor_exec "${1:-}" ;;
+        profile)        cmd_profile "${1:-status}" "${2:-}" ;;
+        waybar)         cmd_waybar "${1:-}" ;;
+        -h|--help|help) usage ;;
+        *) usage; exit 1 ;;
+    esac
+}
+
+need pactl
+mkdir -p "$RUN_DIR"
+init_profile_knobs
+snapshot_env
+resolve_config "" 0
+
+case "${1:-}" in
+    # read-only paths called from a bar on a timer must never block on the lock
+    waybar|status|dump|env|render|monitor-exec|doctor|-h|--help|help)
+        main "$@"
+        ;;
+    *)
+        if have flock; then
+            exec 9>"$LOCK_FILE"
+            flock -w 10 9 || die "another micctl is running"
+        fi
+        main "$@"
+        ;;
+esac
