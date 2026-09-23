@@ -23,6 +23,7 @@ return {
 			"css-lsp",
 			"typescript-language-server",
 			"lua-language-server",
+			"robotcode"
 		}
 		-- Install servers
 		for _, server in ipairs(servers) do
@@ -69,5 +70,6 @@ return {
 		vim.lsp.enable('cssls')
 		vim.lsp.enable('ts_ls')
 		vim.lsp.enable('lua_ls')
+		vim.lsp.enable('robotcode')
 	end,
 }
