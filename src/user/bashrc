@@ -44,7 +44,12 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 #       certain applications depend on to run or function.
 export PATH_DOTFILE="$HOME/dotfile"
 export GPG_TTY="$(tty)"
-export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+
+if [[ -z "$SSH_AUTH_SOCK" ]]; then
+	# Prevent clobbering of forwarded agent,
+	# if already defined when shell starts.
+	export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+fi
 
 # Git status
 git_branch() {
