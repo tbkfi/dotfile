@@ -22,6 +22,9 @@ fi
 # 2. SYSTEM-LOCAL (/usr/local)
 # 3. SYSTEM       (/usr/)
 export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin"
+if [[ -d "$HOME/.local/bin" ]]; then
+	export PATH="$HOME/.local/bin:$PATH"
+fi
 if [[ -d "$HOME/bin" ]]; then
 	export PATH="$HOME/bin:$PATH"
 fi
