@@ -1,3 +1,12 @@
+# Global configuration for GIT
+# 'man git'
+# updated on 2026-09-29
+
+# relevant ENV params:
+# * GIT_CONFIG_SYSTEM
+# * GIT_CONFIG_GLOBAL
+# * GIT_CONFIG_NOSYSTEM 
+
 # General
 [commit]
 	gpgSign = true
@@ -26,7 +35,7 @@
 	prune = true
 	pruneTags = true
 [log]
-	#showSignature = true
+	showSignature = true
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
