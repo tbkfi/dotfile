@@ -1,26 +1,21 @@
+# Notes:
+# - Forcing '-I/usr/include' here would inject host glibc headers into cross builds (ARM/Zephyr).
+# - Forcing '-std' here invalidates inferred C/++ from the sources.
 CompileFlags:
-    Add: [
-        -Wall,
-        -Wextra,
-        -Wpedantic,
-        -I/usr/include, # Need this for C, 'cause of LSP issues
-    ]
-
-# Headers
-if:
-    PathMatch: .*\.h
-CompileFlags:
-    Add: [-std=c++20]
-
+  Add: [-Wall, -Wextra, -Wpedantic]
+---
 # C
 If:
-    PathMatch: .*\.c
+  PathMatch: .*\.c
 CompileFlags:
-    Add: [-std=c23]
-
+  Add: [-std=c23]
+---
 # C++
 If:
-    PathMatch: .*\.cpp
+  PathMatch: .*\.cpp
 CompileFlags:
-    Add: [-std=c++20]
-
+  Add: [-std=c++20]
+---
+ Diagnostics:
+  # noise: Zephyr's macros use __COUNTER__, which -Wpedantic flags as a C2y extension.
+  Suppress: [c2y-extensions]
