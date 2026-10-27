@@ -1,0 +1,58 @@
+# Global configuration for GIT
+# 'man git'
+# updated on 2026-09-29
+
+# relevant ENV params:
+# * GIT_CONFIG_SYSTEM
+# * GIT_CONFIG_GLOBAL
+# * GIT_CONFIG_NOSYSTEM 
+
+# General
+[commit]
+	gpgSign = true
+[init]
+	defaultBranch = main
+[branch]
+	sort = -committerdate
+[tag]
+	sort = version:refname
+[push]
+	autoSetupRemote = true
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+	autoSquash = true
+[merge]
+	conflictStyle = zdiff3
+[rerere]
+	enabled = true
+	autoUpdate = true
+[diff]
+	algorithm = histogram
+	renames = copies
+[fetch]
+	prune = true
+	pruneTags = true
+[log]
+	showSignature = true
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+
+# Program & Custom
+[alias]
+	lg = log --graph --pretty=format:'%C(yellow)%h%Creset %C(green)[%G?]%Creset %s %C(cyan)(%cr) <%an>%Creset'
+[gpg]
+	program = gpg
+[core]
+	excludesfile = ~/.config/git/ignore
+	editor = nvim
+
+# Identity
+[include]
+	path = identity/tbk
+[includeIf "gitdir:~/local/code/vai/"]
+	path = identity/vai

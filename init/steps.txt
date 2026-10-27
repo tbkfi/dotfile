@@ -1,0 +1,11 @@
+## SCRAP NOTES FILE
+# VMWARE EDIT LIST
+firmware = "efi"
+ethernet0.virtualDev = "vmxnet3"
+
+# DISABLE LIST
+systemd-timesyncd.service
+
+# ENABLE LIST
+chronyd.service
+greetd.service

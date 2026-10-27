@@ -1,0 +1,16 @@
+#!/bin/bash
+# Inject required ENV context to desired 'pinentry',
+# so the program can successfully prompt the user.
+#
+# This may not be neccessary on all distros, and shouldn't
+# be required on common DEs like Gnome/KDE with more unified ctx.
+#
+BIN_PINENTRY="/usr/bin/pinentry-qt"
+
+# Potentially required VARs
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
+#export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+#export QT_QPA_PLATFORM=wayland
+
+
+exec "$BIN_PINENTRY" "$@"

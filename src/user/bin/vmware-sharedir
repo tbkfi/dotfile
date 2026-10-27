@@ -1,0 +1,40 @@
+#!/bin/bash
+# Mount all VMware "share folders"
+# from host to current user.
+MOUNT_POINT="$HOME/remote/vmware"
+SRC=".host:/"
+
+
+mkdir -p "$MOUNT_POINT"
+echo ">> VMware Share Folder"
+
+# Guard
+if ! command -v vmhgfs-fuse &> /dev/null; then
+	echo " * missing tool 'vmhgfs-fuse'!"
+fi
+
+# Enable non-root access
+if ! grep -q "^user_allow_other" /etc/fuse.conf; then
+    echo "user_allow_other" | sudo tee -a /etc/fuse.conf > /dev/null
+fi
+
+# Mount
+GREP_RES=$(mount | grep ^vmhgfs.*$MOUNT_POINT.*)
+if [[ -z "$GREP_RES" ]]; then
+	# If not mounted -> Mount
+	sudo vmhgfs-fuse "$SRC" "$MOUNT_POINT" -o allow_other -o uid=$(id -u) -o gid=$(id -g)
+	if [[ $? != 0 ]]; then
+		echo " * mount failed!"
+	else
+		echo " * mounted to: $MOUNT_POINT"
+	fi
+else
+	# If mounted -> Unmount
+	sudo umount "$MOUNT_POINT"
+	if [[ $? != 0 ]]; then
+		echo " * unmount failed!"
+	else
+		echo " * unmounted: $MOUNT_POINT"
+	fi
+fi
+

@@ -1,0 +1,24 @@
+#!/bin/bash
+# Force timestep on systems with veered time.
+# 
+# Target uses:
+# * General system maintenance
+# * VMs that are frozen and then resumed often.
+run() {
+	local CMD="$1"
+
+	# Sudo
+	if command -v sudo &> /dev/null; then sudo $CMD; fi
+
+	# Non-sudo
+	# TODO
+
+	# Other?
+	# TODO
+}
+
+# Systemd, Chrony
+if command -v chronyc; then
+	run "chronyc burst 4/4"
+	run "chronyc makestep"
+fi
