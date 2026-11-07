@@ -68,6 +68,8 @@ download = [
 rules = [
 	# Folder
 	{ url = "*/", use = [ "edit", "open", "reveal" ] },
+	# LaTeX (xdg-open -> mimeapps.list default, i.e. Setzer)
+	{ mime = "text/x-tex", use = [ "open", "edit", "reveal" ] },
 	# Text
 	{ mime = "text/*", use = [ "edit", "reveal" ] },
 	# Image
