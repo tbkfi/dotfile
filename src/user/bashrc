@@ -22,12 +22,14 @@ fi
 #
 # 1. USER-BIN            ~/bin
 # 2. USER-LOCAL-BIN      ~/.local/bin
+# 3. USER-FLATPAK        ~/.local/share/flatpak/exports/bin
 #
-# 3. SYSTEM-LOCAL-SBIN   /usr/sbin (if sudo)
-# 4. SYSTEM-SBIN         /usr/sbin (if sudo)
+# 4. SYSTEM-LOCAL-SBIN   /usr/sbin (if sudo)
+# 5. SYSTEM-SBIN         /usr/sbin (if sudo)
 #
-# 5. SYSTEM-LOCAL-BIN    /usr/local/bin
-# 6. SYSTEM-BIN          /usr/bin
+# 6. SYSTEM-LOCAL-BIN    /usr/local/bin
+# 7. SYSTEM-BIN          /usr/bin
+#
 
 MY_PATH=""
 
@@ -37,6 +39,10 @@ fi
 
 if [[ -d "$HOME/.local/bin" ]]; then
 	export MY_PATH="$MY_PATH:$HOME/.local/bin"
+fi
+
+if [[ -d "$HOME/.local/share/flatpak/exports/bin" ]]; then
+	export MY_PATH="$MY_PATH:$HOME/.local/share/flatpak/exports/bin"
 fi
 
 if [[ ! $(groups | grep -Eq "wheel") || $(groups | grep -Eq "sudo") ]]; then
